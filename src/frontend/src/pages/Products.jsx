@@ -6,9 +6,12 @@ import {
   Trash2, 
   Tag, 
   Loader2, 
-  ArrowUpRight,
-  ExternalLink,
-  Check
+  ArrowUpRight, 
+  ExternalLink, 
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 import { api } from '../services/api';
 import CameraCapture from '../components/CameraCapture';
@@ -18,15 +21,16 @@ export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [previewGallery, setPreviewGallery] = useState(null); // { title: string, images: string[], currentIndex: number }
   
   // Nouveau produit
   const [name, setName] = useState('');
-  const [category, setCategory] = useState('Vêtements');
-  const [imageUrl, setImageUrl] = useState('');
+  const [category, setCategory] = useState('Pyjamas');
+  const [imageUrls, setImageUrls] = useState([]);
   const [buyPrice, setBuyPrice] = useState('1200');
   const [targetSellPrice, setTargetSellPrice] = useState('2900');
-  const [sizes, setSizes] = useState('M, L, XL');
-  const [colors, setColors] = useState('Noir, Bleu');
+  const [sizes, setSizes] = useState('S, M, L, XL');
+  const [colors, setColors] = useState('Rose, Beige, Noir');
   const [saving, setSaving] = useState(false);
 
   // Recherche de marché IA
@@ -59,12 +63,13 @@ export default function Products() {
       const specsObj = {
         tailles: sizes.split(',').map((s) => s.trim()).filter(Boolean),
         couleurs: colors.split(',').map((c) => c.trim()).filter(Boolean),
+        images: imageUrls,
       };
 
       await api.createProduct({
         name: name.trim(),
         category: category.trim(),
-        imageUrl: imageUrl.trim(),
+        imageUrl: imageUrls[0] || '',
         specifications: JSON.stringify(specsObj),
         buyPrice: parseFloat(buyPrice) || 0,
         targetSellPrice: parseFloat(targetSellPrice) || 0,
@@ -72,7 +77,7 @@ export default function Products() {
 
       setShowAddModal(false);
       setName('');
-      setImageUrl('');
+      setImageUrls([]);
       loadProducts();
     } catch (err) {
       alert(err.message || 'Erreur lors de la création');
@@ -171,34 +176,76 @@ export default function Products() {
             return (
               <div key={p.id} className="glass-card" style={{ padding: '16px' }}>
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                  {p.imageUrl ? (
-                    <img
-                      src={p.imageUrl}
-                      alt={p.name}
-                      style={{
-                        width: '74px',
-                        height: '74px',
-                        borderRadius: '12px',
-                        objectFit: 'cover',
-                        border: '1px solid var(--border-card)',
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: '74px',
-                        height: '74px',
-                        borderRadius: '12px',
-                        background: 'rgba(255,255,255,0.04)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--text-dim)',
-                      }}
-                    >
-                      <Package size={24} />
-                    </div>
-                  )}
+                  <div 
+                    style={{ 
+                      position: 'relative', 
+                      width: '78px', 
+                      height: '78px', 
+                      flexShrink: 0,
+                      cursor: (specs.images?.length || p.imageUrl) ? 'pointer' : 'default',
+                    }}
+                    onClick={() => {
+                      const list = (specs.images && specs.images.length > 0)
+                        ? specs.images
+                        : (p.imageUrl ? [p.imageUrl] : []);
+                      if (list.length > 0) {
+                        setPreviewGallery({ title: p.name, images: list, currentIndex: 0 });
+                      }
+                    }}
+                    title={(specs.images?.length || p.imageUrl) ? "Cliquer pour voir la galerie photos" : ""}
+                  >
+                    {p.imageUrl ? (
+                      <img
+                        src={p.imageUrl}
+                        alt={p.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: '14px',
+                          objectFit: 'cover',
+                          border: '1.5px solid var(--accent-rose-border)',
+                          boxShadow: '0 4px 10px rgba(219, 39, 119, 0.12)',
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: '14px',
+                          background: 'var(--bg-secondary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--text-dim)',
+                          border: '1px dashed var(--accent-rose-border)',
+                        }}
+                      >
+                        <Package size={24} />
+                      </div>
+                    )}
+                    {specs.images && specs.images.length > 1 && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '-4px',
+                          right: '-4px',
+                          background: 'linear-gradient(135deg, #f472b6, #db2777)',
+                          color: '#fff',
+                          fontSize: '0.62rem',
+                          fontWeight: 800,
+                          padding: '2px 6px',
+                          borderRadius: '6px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px'
+                        }}
+                      >
+                        📸 {specs.images.length}
+                      </div>
+                    )}
+                  </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -314,7 +361,7 @@ export default function Products() {
             </div>
 
             <form onSubmit={handleCreateProduct}>
-              <CameraCapture imageUrl={imageUrl} onImageUploaded={setImageUrl} />
+              <CameraCapture imageUrls={imageUrls} onImagesChanged={setImageUrls} />
 
               <div className="input-group">
                 <label className="input-label">Nom de la Sel3a</label>
@@ -492,6 +539,186 @@ export default function Products() {
                 </button>
               </div>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL GALERIE PHOTOS MULTIPLES / LIGHTBOX */}
+      {previewGallery && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.88)',
+            backdropFilter: 'blur(12px)',
+            zIndex: 120,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '16px',
+          }}
+          onClick={() => setPreviewGallery(null)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              maxWidth: '460px',
+              width: '100%',
+              background: 'var(--bg-primary, #1c1917)',
+              border: '1.5px solid var(--accent-rose-border)',
+              borderRadius: '24px',
+              padding: '18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Entête Galerie */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                  {previewGallery.title}
+                </h3>
+                <span style={{ fontSize: '0.74rem', color: 'var(--accent-rose)', fontWeight: 700 }}>
+                  Photo {previewGallery.currentIndex + 1} sur {previewGallery.images.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewGallery(null)}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-main)',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Photo principale affichée */}
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                aspectRatio: '1',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                background: '#0d0d0d',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <img
+                src={previewGallery.images[previewGallery.currentIndex]}
+                alt={previewGallery.title}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+
+              {/* Flèches Précédent / Suivant */}
+              {previewGallery.images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewGallery((prev) => ({
+                        ...prev,
+                        currentIndex: (prev.currentIndex - 1 + prev.images.length) % prev.images.length,
+                      }));
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: '8px',
+                      background: 'rgba(0,0,0,0.6)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '36px',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPreviewGallery((prev) => ({
+                        ...prev,
+                        currentIndex: (prev.currentIndex + 1) % prev.images.length,
+                      }));
+                    }}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      background: 'rgba(0,0,0,0.6)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '36px',
+                      height: '36px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Miniatures cliquables */}
+            {previewGallery.images.length > 1 && (
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '8px',
+                  overflowX: 'auto',
+                  paddingBottom: '4px',
+                }}
+              >
+                {previewGallery.images.map((imgUrl, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setPreviewGallery((prev) => ({ ...prev, currentIndex: i }))}
+                    style={{
+                      border: i === previewGallery.currentIndex ? '2.5px solid var(--accent-rose)' : '1px solid var(--border-card)',
+                      borderRadius: '10px',
+                      padding: 0,
+                      width: '56px',
+                      height: '56px',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      cursor: 'pointer',
+                      background: 'transparent',
+                      opacity: i === previewGallery.currentIndex ? 1 : 0.6,
+                      boxShadow: i === previewGallery.currentIndex ? '0 2px 8px rgba(219, 39, 119, 0.3)' : 'none',
+                    }}
+                  >
+                    <img src={imgUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
