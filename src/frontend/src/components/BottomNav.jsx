@@ -1,10 +1,11 @@
 import React from 'react';
-import { FlaskConical, Package, TrendingUp, ShieldCheck } from 'lucide-react';
+import { FlaskConical, Package, ShoppingBag, TrendingUp, ShieldCheck } from 'lucide-react';
 
 export default function BottomNav({ activeTab, onTabChange }) {
   const tabs = [
     { id: 'laboratoire', label: 'Laboratoire', icon: FlaskConical },
     { id: 'produits', label: 'Sel3a', icon: Package },
+    { id: 'ventes', label: 'Ventes', icon: ShoppingBag },
     { id: 'fayda', label: 'Fayda', icon: TrendingUp },
     { id: 'profil', label: 'Gérants', icon: ShieldCheck },
   ];

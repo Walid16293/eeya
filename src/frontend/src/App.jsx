@@ -4,6 +4,7 @@ import BottomNav from './components/BottomNav';
 import Login from './pages/Login';
 import Laboratory from './pages/Laboratory';
 import Products from './pages/Products';
+import Sales from './pages/Sales';
 import FaydaDashboard from './pages/FaydaDashboard';
 import Profile from './pages/Profile';
 
@@ -44,6 +45,7 @@ export default function App() {
       <main style={{ flex: 1 }}>
         {activeTab === 'laboratoire' && <Laboratory />}
         {activeTab === 'produits' && <Products />}
+        {activeTab === 'ventes' && <Sales />}
         {activeTab === 'fayda' && <FaydaDashboard />}
         {activeTab === 'profil' && <Profile user={user} onLogout={handleLogout} />}
       </main>

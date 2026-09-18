@@ -24,20 +24,22 @@ export default function MannequinViewer({ product, onClose, onSaveMannequinViews
   // Vues du mannequin (face, côté, arrière)
   const existingViews = specs.mannequinViews || {};
 
-  // Vues par défaut ou générées
+  // Vues par défaut ou générées dans le décor salon réel (backend.png)
   const [views, setViews] = useState({
-    front: existingViews.front || product.imageUrl || '/mannequin/pyjama_rose_front.png',
-    side: existingViews.side || '/mannequin/pyjama_rose_side.png',
-    back: existingViews.back || '/mannequin/pyjama_rose_back.png',
+    front: existingViews.front || '/mannequin/mannequin_salon_front.png',
+    side: existingViews.side || '/mannequin/mannequin_salon_side.png',
+    back: existingViews.back || '/mannequin/mannequin_salon_back.png',
+    flat: product.imageUrl || '/mannequin/mannequin_salon_front.png',
   });
 
-  const [activeAngle, setActiveAngle] = useState('front'); // 'front' | 'side' | 'back'
+  const [activeAngle, setActiveAngle] = useState('front'); // 'front' | 'side' | 'back' | 'flat'
   const [generating, setGenerating] = useState(false);
 
   const angles = [
-    { id: 'front', label: 'Vue de Face', icon: '👗', desc: 'Face complète sur buste & pied chromé' },
-    { id: 'side', label: 'Vue de Côté / Profil', icon: '📐', desc: 'Profil 45° coupe & tombé du tissu' },
-    { id: 'back', label: 'Vue Arrière / Dos', icon: '🔄', desc: 'Détail dos, finitions & ceinture' },
+    { id: 'front', label: 'Face Salon', icon: '👗', desc: 'Mannequin de face dans le décor réel (canapé & rideaux)' },
+    { id: 'side', label: 'Profil Salon', icon: '📐', desc: 'Profil 45° coupe & tombé du tissu dans le salon' },
+    { id: 'back', label: 'Dos Salon', icon: '🔄', desc: 'Vue arrière et finitions dos dans le salon' },
+    { id: 'flat', label: 'Photo Brute', icon: '📸', desc: 'Photo originale importée à plat (pour comparaison)' },
   ];
 
   const currentImage = views[activeAngle];
@@ -106,7 +108,7 @@ export default function MannequinViewer({ product, onClose, onSaveMannequinViews
                 Studio Mannequin Virtuel
               </span>
               <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                Rendu 3 Angles Ultra-Réaliste
+                Décor Salon Réel (Canapé & Rideaux)
               </span>
             </div>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '6px', color: 'var(--text-main)' }}>
@@ -135,12 +137,12 @@ export default function MannequinViewer({ product, onClose, onSaveMannequinViews
           </button>
         </div>
 
-        {/* Sélecteur des 3 Angles (Face, Côté, Arrière) */}
+        {/* Sélecteur des 4 Modes (Face, Profil, Dos, Photo Brute) */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '8px',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '6px',
             background: 'rgba(0,0,0,0.35)',
             padding: '4px',
             borderRadius: '16px',
@@ -159,19 +161,19 @@ export default function MannequinViewer({ product, onClose, onSaveMannequinViews
                   color: isActive ? '#831843' : 'var(--text-muted)',
                   border: 'none',
                   borderRadius: '12px',
-                  padding: '9px 6px',
+                  padding: '8px 4px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '3px',
                   cursor: 'pointer',
                   fontWeight: isActive ? 800 : 600,
-                  fontSize: '0.74rem',
+                  fontSize: '0.7rem',
                   boxShadow: isActive ? '0 4px 12px rgba(244, 114, 182, 0.3)' : 'none',
                   transition: 'all 0.2s ease',
                 }}
               >
-                <span style={{ fontSize: '1.05rem' }}>{ang.icon}</span>
+                <span style={{ fontSize: '0.95rem' }}>{ang.icon}</span>
                 <span>{ang.label}</span>
               </button>
             );
@@ -183,10 +185,11 @@ export default function MannequinViewer({ product, onClose, onSaveMannequinViews
           style={{
             position: 'relative',
             width: '100%',
-            aspectRatio: '1',
+            aspectRatio: '9 / 14',
+            maxHeight: '60vh',
             borderRadius: '20px',
             overflow: 'hidden',
-            background: 'radial-gradient(circle at center, #2e2825 0%, #151312 100%)',
+            background: '#12100e',
             border: '1.5px solid rgba(212, 163, 115, 0.25)',
             boxShadow: 'inset 0 0 40px rgba(0,0,0,0.6)',
             display: 'flex',
@@ -211,7 +214,7 @@ export default function MannequinViewer({ product, onClose, onSaveMannequinViews
               position: 'absolute',
               top: '10px',
               left: '10px',
-              background: 'rgba(0,0,0,0.65)',
+              background: 'rgba(0,0,0,0.72)',
               backdropFilter: 'blur(8px)',
               borderRadius: '8px',
               padding: '4px 8px',
@@ -221,11 +224,13 @@ export default function MannequinViewer({ product, onClose, onSaveMannequinViews
               display: 'flex',
               alignItems: 'center',
               gap: '4px',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.15)',
             }}
           >
             <CheckCircle2 size={12} color="#34d399" />
-            <span>Mannequin Atelier & Pied Chrome</span>
+            <span>
+              {activeAngle === 'flat' ? 'Photo Brute Importée' : 'Décor Salon Réel (Canapé & Rideaux)'}
+            </span>
           </div>
 
           {/* Cadrage Actuel */}
