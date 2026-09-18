@@ -160,6 +160,37 @@ export const api = {
     });
   },
 
+  // --- DÉTECTION CHROMATIQUE IA SUR LE SERVEUR (.NET Core SixLabors) ---
+  async detectColorOnServer(imageUrl) {
+    return request('/api/ai/detect-color', {
+      method: 'POST',
+      body: JSON.stringify({ imageUrl }),
+    });
+  },
+
+  async detectColorsBatchOnServer(imageUrls) {
+    return request('/api/ai/detect-colors-batch', {
+      method: 'POST',
+      body: JSON.stringify({ imageUrls }),
+    });
+  },
+
+  async detectColorFromFileOnServer(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = localStorage.getItem('laboratoire_token');
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const url = `${API_BASE_URL}/api/ai/detect-color-file`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) throw new Error('Erreur détection couleur serveur');
+    return await res.json();
+  },
+
   // --- SANTÉ DU SERVEUR ---
   async checkHealth() {
     return request('/api/health');

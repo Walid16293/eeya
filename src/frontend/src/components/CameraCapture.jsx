@@ -96,20 +96,35 @@ export default function CameraCapture({ imageUrls = [], photoItems = [], onImage
         setUploadProgress({ current: i + 1, total: files.length });
         const file = files[i];
 
-        // 1. Détection de couleur en direct sur le fichier local AVANT téléversement (Zéro erreur CORS)
-        let detected = { colorName: 'Rose Poudré & Carreaux', hex: '#f4b8c9' };
-        try {
-          const res = await detectClothingColors(file);
-          if (res?.colorName) {
-            detected = { colorName: res.colorName, hex: res.hex };
-          }
-        } catch (e) {
-          console.warn('Erreur détection fichier local:', e);
-        }
-
-        // 2. Compression et téléversement vers Cloudinary
+        // 1. Compression et téléversement vers Cloudinary
         const optimizedFile = await compressImage(file);
         const uploadedUrl = await api.uploadToCloudinary(optimizedFile);
+
+        // 2. Détection chromatique IA SUR LE SERVEUR (Backend .NET ImageSharp)
+        let detected = { colorName: 'Rose Poudré & Carreaux', hex: '#f4b8c9' };
+        let serverSuccess = false;
+
+        if (uploadedUrl) {
+          try {
+            const serverRes = await api.detectColorOnServer(uploadedUrl);
+            if (serverRes?.colorName) {
+              detected = { colorName: serverRes.colorName, hex: serverRes.hex };
+              serverSuccess = true;
+            }
+          } catch (serverErr) {
+            console.warn('Détection serveur indisponible, utilisation du fallback local:', serverErr);
+          }
+        }
+
+        // Fallback local si le serveur est en veille ou injoignable
+        if (!serverSuccess) {
+          try {
+            const localRes = await detectClothingColors(file);
+            if (localRes?.colorName) {
+              detected = { colorName: localRes.colorName, hex: localRes.hex };
+            }
+          } catch (_) {}
+        }
 
         if (uploadedUrl) {
           newItems.push({

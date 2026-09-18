@@ -91,6 +91,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IFaydaCalculatorService, FaydaCalculatorService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddHttpClient<IMarketAiService, MarketAiService>();
+builder.Services.AddHttpClient<IColorDetectionService, ColorDetectionService>();
 
 var app = builder.Build();
 
