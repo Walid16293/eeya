@@ -27,8 +27,8 @@ API_HASH = os.getenv("TELEGRAM_API_HASH", "4dbdb8a3f87794dbc0da323d223e31be")
 # Clé de session Cloud (StringSession)
 SESSION_ENV = os.getenv("TELEGRAM_SESSION", "")
 
-# Destination des alertes (Nom du groupe, ID, ou "me")
-DESTINATION = os.getenv("TELEGRAM_DESTINATION", "Grossistes Alertes")
+# Destination des alertes (Identifiant exact de votre groupe 'Grossistes Alertes' ou 'me')
+DESTINATION = os.getenv("TELEGRAM_DESTINATION", "-5044680159")
 
 # Mode exécution unique (GitHub Actions) ou boucle continue (PC local)
 RUN_ONCE = os.getenv("RUN_ONCE", "false").lower() in ("true", "1") or os.getenv("GITHUB_ACTIONS") == "true"
