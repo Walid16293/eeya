@@ -9,7 +9,14 @@ public static class DbSeeder
     public static async Task SeedAsync(AppDbContext context, IConfiguration configuration)
     {
         // Ensure Database is created / migrated
-        await context.Database.EnsureCreatedAsync();
+        if (context.Database.IsRelational())
+        {
+            await context.Database.MigrateAsync();
+        }
+        else
+        {
+            await context.Database.EnsureCreatedAsync();
+        }
 
         if (!await context.Users.AnyAsync())
         {

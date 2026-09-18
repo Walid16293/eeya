@@ -15,8 +15,8 @@ builder.Services.AddControllers()
     });
 
 // 2. Configuration de la Base de Données (PostgreSQL Neon ou SQLite de repli)
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-                       ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL")
+                       ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
 // Support du format URL Render/Neon (ex: postgres://user:password@host/dbname)
 if (!string.IsNullOrWhiteSpace(connectionString) && (connectionString.StartsWith("postgres://") || connectionString.StartsWith("postgresql://")))
