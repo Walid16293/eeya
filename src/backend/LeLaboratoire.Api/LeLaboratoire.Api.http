@@ -1,0 +1,6 @@
+@LeLaboratoire.Api_HostAddress = http://localhost:5203
+
+GET {{LeLaboratoire.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

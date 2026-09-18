@@ -1,0 +1,140 @@
+\documentclass[11pt,a4paper]{article}
+
+% Packages indispensables
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{amsmath}
+
+% Configuration de la page
+\geometry{top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+
+% Couleurs
+\definecolor{primary}{RGB}{33, 37, 41}
+\definecolor{secondary}{RGB}{0, 114, 178}
+\definecolor{accent}{RGB}{40, 167, 69}
+
+% Styles des sections
+\titleformat{\section}{\color{primary}\Large\bfseries}{\thesection}{1em}{}[\vspace{0.2ex}\titlerule]
+\titleformat{\subsection}{\color{secondary}\large\bfseries}{\thesubsection}{1em}{}
+
+\title{\textbf{Cahier des Charges Technique, Fonctionnel et Mathématique}\\ \large Application E-commerce "Le Laboratoire" \& Maximisation de la Fayda}
+\author{Équipe de Direction}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Architecture Technologique \& Infrastructure (Coût : 0 DA)}
+
+L'application repose sur une architecture découplée pour garantir performance, sécurité et gratuité d'hébergement.
+
+\subsection{Stack Technique}
+\begin{itemize}
+    \item \textbf{Frontend :} React (Vite.js) configuré en PWA (Progressive Web App).
+    \item \textbf{Backend / API :} C\# ASP.NET Core Web API avec Entity Framework Core.
+    \item \textbf{Base de Données :} PostgreSQL (Hébergement Neon.tech ou Supabase).
+    \item \textbf{Module IA :} Python (CrewAI) couplé à des LLM locaux (Ollama : DeepSeek-R1 / Qwen).
+\end{itemize}
+
+\subsection{Hébergement et Sécurité}
+\begin{itemize}
+    \item \textbf{Déploiement Frontend :} Vercel (synchronisation GitHub, HTTPS automatique, CDN mondial).
+    \item \textbf{Déploiement Backend :} Render ou Koyeb (déploiement via Dockerfile).
+    \item \textbf{Authentification :} JWT (JSON Web Token). Comptes limités à 2 Administrateurs, pré-générés en base de données (aucune inscription publique).
+\end{itemize}
+
+\section{Gestion des Images (Upload et Stockage)}
+
+L'hébergement gratuit (Render) est volatil. Si les images étaient stockées directement sur le serveur backend, elles seraient définitivement perdues à chaque redémarrage (cold start) ou mise à jour de l'API.
+
+\subsection{Intégration de Cloudinary}
+\begin{itemize}
+    \item \textbf{Flux de données (Workflow) :} 
+    \begin{enumerate}
+        \item Lors de l'ajout d'un produit, l'administrateur prend la photo (via smartphone).
+        \item Le frontend React ou l'API .NET envoie ce fichier image directement au service tiers \textbf{Cloudinary} via son API sécurisée.
+        \item Cloudinary stocke l'image, l'optimise pour le web (compression automatique), et renvoie un lien public HTTPS (ex: \texttt{res.cloudinary.com/.../sel3a.jpg}).
+        \item L'API .NET enregistre \textbf{uniquement ce lien URL} sous forme de texte dans la base de données PostgreSQL.
+    \end{enumerate}
+    \item \textbf{Avantage :} Zéro charge sur la base de données, chargement ultra-rapide des images côté client, et préservation totale des données même si le serveur API redémarre.
+\end{itemize}
+
+\section{Ergonomie Mobile \& Interface (PWA)}
+
+Le second administrateur opérant exclusivement sur smartphone, l'interface Frontend adopte une approche "Mobile-First" stricte.
+
+\subsection{Contraintes PWA et Saisie Rapide (Fast-Input)}
+\begin{itemize}
+    \item \textbf{Installation native :} Fichier \texttt{manifest.json} et Service Worker pour installation sur l'écran d'accueil iOS/Android, avec barre de navigation inférieure (Bottom Navigation Bar).
+    \item \textbf{Clavier Numérique Natif :} Utilisation des attributs HTML (\texttt{inputMode="decimal"}) pour forcer le pavé numérique lors de la saisie des dépenses Ads et des revenus.
+    \item \textbf{Capture Photo Directe :} Intégration de l'attribut \texttt{capture="environment"} sur le champ d'upload de produits pour déclencher l'appareil photo arrière directement depuis l'application web.
+\end{itemize}
+
+\section{Modélisation Financière : "Le Laboratoire"}
+
+Le Laboratoire teste la rentabilité d'une nouvelle marchandise (\textit{sel3a}) avant achat en gros.
+
+\subsection{Variables d'Entrée du Test}
+\begin{itemize}
+    \item \textbf{Capital Stock (\textit{Ras Lmal}) :} Quantité initiale (ex: 8 pièces) et coût total d'achat fournisseur.
+    \item \textbf{Budget Sponsoring (Ads) :} Budget total alloué sur la page officielle (Facebook/Instagram). Défaut : 2 000 DA sur 6 jours.
+    \item \textbf{Frais de Logistique :} Le "ticket de bureau" payé pour chaque commande expédiée. Défaut : 15 DA.
+\end{itemize}
+
+\subsection{Équations Fondamentales}
+Le Backend .NET calcule en temps réel :
+
+\begin{equation}
+    \text{Dépense Totale} = \text{Ras Lmal} + \text{Total Ads Consommé} + (\text{Ventes Confirmées} \times \text{Ticket Bureau})
+\end{equation}
+
+\begin{equation}
+    \text{Revenu Total} = \text{Ventes Confirmées} \times \text{Prix de Vente Unitaire}
+\end{equation}
+
+\begin{equation}
+    \textbf{Fayda (Bénéfice Net)} = \text{Revenu Total} - \text{Dépense Totale}
+\end{equation}
+
+\section{Intelligence Artificielle \& Maximisation de la Fayda}
+
+Le système intègre un pipeline IA multi-agents (CrewAI + Ollama) pour optimiser les prix et analyser le marché.
+
+\subsection{Méthode technique de Scraping (Facebook, Instagram, TikTok)}
+Les réseaux sociaux bloquent agressivement les robots de scraping direct. L'Agent IA contourne ce problème via une méthode indirecte :
+\begin{itemize}
+    \item \textbf{Recherche par Google Dorking :} L'Agent Python utilise une API de recherche (ex: SerpApi) ou Playwright pour interroger le moteur de recherche Google avec des opérateurs ciblés. Exemple de requête automatisée :\\
+    \texttt{site:facebook.com OR site:instagram.com OR site:tiktok.com "Nom de la sel3a" "DA" Algérie}.
+    \item \textbf{Extraction Sémantique par LLM :} Les résultats bruts textuels renvoyés par la recherche sont envoyés au modèle LLM local (Ollama). Le modèle a pour instruction (Prompt) de lire ce texte bruité, d'en extraire le prix exact en Dinars Algériens, et de structurer la donnée en JSON.
+    \item \textbf{Définition du Prix Plafond :} Le système compile ces extractions, élimine les prix aberrants, et définit le prix moyen du marché local. Ce prix devient la limite psychologique à ne pas dépasser.
+\end{itemize}
+
+\subsection{Ajustement Dynamique et Arrondi Psychologique}
+\begin{itemize}
+    \item \textbf{Arrondi Psychologique :} Le modèle .NET ajuste automatiquement le prix de vente brut au seuil psychologique le plus attractif (ex: proposition à 2 900 DA plutôt que 3 000 DA).
+    \item \textbf{Boucle de Feedback (6 Jours) :}
+    \begin{itemize}
+        \item \textit{Alerte Prix Trop Haut :} CTR élevé (> 2\%) mais 0 vente au Jour 3 $\rightarrow$ Recommandation d'une baisse immédiate du prix pour débloquer les conversions.
+        \item \textit{Opportunité de Maximisation :} Écoulement rapide du stock avec un faible CPA $\rightarrow$ Recommandation d'augmentation du prix sur le stock restant.
+        \item \textit{Arrêt d'Urgence :} Plus de 60\% du budget Ads consommé sans vente $\rightarrow$ Alerte rouge, recommandation de stopper la campagne pour protéger le reste du budget.
+    \end{itemize}
+\end{itemize}
+
+\section{Structure de la Base de Données (PostgreSQL / EF Core)}
+\begin{itemize}
+    \item \textbf{Format JSONB :} Utilisation du type \texttt{jsonb} pour la colonne \texttt{Specifications} de la table \texttt{Products}, permettant d'ajouter dynamiquement des attributs (couleurs, tailles) sans modifier le schéma de la base.
+    \item \textbf{Entités Principales :} \texttt{Users}, \texttt{Products}, \texttt{ProductTests}, \texttt{TestDailyMetrics}.
+\end{itemize}
+
+\end{document}

@@ -1,0 +1,34 @@
+# .NET Core & Build Artifacts
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+laboratoire.db
+laboratoire.db-shm
+laboratoire.db-wal
+
+# Frontend & Node
+**/node_modules/
+src/frontend/dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# LaTeX Auxiliary Files (Garder rapport.pdf et rapport.tex)
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# IDE & OS
+.vscode/
+.idea/
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store

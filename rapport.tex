@@ -1,0 +1,339 @@
+\documentclass[11pt,a4paper]{article}
+
+% --- PACKAGES FONDAMENTAUX ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{array}
+
+% --- GÉOMÉTRIE ET MISE EN PAGE ---
+\geometry{top=2.5cm, bottom=2.5cm, left=2.3cm, right=2.3cm}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=secondary,
+    urlcolor=secondary,
+    citecolor=secondary
+}
+
+% --- PALETTE DE COULEURS PROFESSIONNELLE ---
+\definecolor{primary}{RGB}{24, 43, 73}       % Bleu Nuit Élégant
+\definecolor{secondary}{RGB}{14, 116, 144}   % Teal / Bleu Océan
+\definecolor{accent}{RGB}{16, 149, 102}      % Vert Émeraude (Fayda)
+\definecolor{warning}{RGB}{217, 119, 6}      % Ambre (Alerte Ads)
+\definecolor{lightgray}{RGB}{245, 247, 250}  % Fond de tableau léger
+\definecolor{darkgray}{RGB}{55, 65, 81}
+
+% --- STYLES DES TITRES ---
+\titleformat{\section}{\color{primary}\LARGE\bfseries}{\thesection}{1em}{}[\vspace{0.3ex}\titlerule]
+\titleformat{\subsection}{\color{secondary}\Large\bfseries}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\color{darkgray}\large\bfseries}{\thesubsubsection}{1em}{}
+
+% --- INFORMATIONS DU DOCUMENT ---
+\title{
+    \vspace{-1.5cm}
+    \textbf{\Huge Rapport Technique \& Plan d'Exécution Global}\\
+    \vspace{0.4cm}
+    \Large Plateforme E-commerce \og Le Laboratoire \fg{} \& Maximisation de la Fayda\\
+    \large Architecture Découplée, Pipeline IA 24/7 \& Écosystème 100\% Gratuit (0 DA)
+}
+\author{\textbf{Équipe d'Ingénierie Logicielle \& Architecture IA}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\vspace{-0.5cm}
+\begin{abstract}
+Ce rapport formalise l'analyse détaillée du cahier des charges de la plateforme e-commerce \og \textbf{Le Laboratoire} \fg. L'application a pour mission stratégique d'évaluer la rentabilité d'une marchandise (\textit{sel3a}) sur un cycle strict de 6 jours avec un capital réduit avant investissement de gros, tout en optimisant le bénéfice net (\textit{Fayda}). Ce document établit la sélection rigoureuse des technologies de A à Z (garantissant \textbf{0 DA} de charges récurrentes), détaille la configuration d'un module d'intelligence artificielle automatisé 24/7 en mode cloud sans machine locale, intègre un scraping non bloquant via DuckDuckGo API, et déroule une feuille de route méthodologique par phases successives pour une mise en production rapide et sécurisée.
+\end{abstract}
+
+\vspace{0.3cm}
+\tableofcontents
+\newpage
+
+% =========================================================================
+\section{Analyse Stratégique et Modélisation Métier}
+% =========================================================================
+
+\subsection{Problématique E-commerce en Algérie}
+Le commerce électronique en Algérie (modèle de distribution locale, achat sur les marchés de gros d'El Eulma, Bab Ezzouar, ou import direct) expose les entrepreneurs à un risque de trésorerie majeur : l'acquisition aveugle d'importants volumes sans certitude de conversion sur les réseaux sociaux. 
+
+Le projet \og \textbf{Le Laboratoire} \fg{} répond à cette friction par un environnement d'arbitrage contrôlé :
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Achat d'un échantillon test} : Acquisition d'un stock minimal (ex. 8 pièces) définissant le \textbf{Ras Lmal}.
+    \item \textbf{Test Publicitaire Sponsoring (Ads)} : Lancement d'une campagne Meta (Facebook/Instagram) avec un budget d'amorçage standardisé (2 000 DA alloués sur 6 jours).
+    \item \textbf{Logistique Réelle} : Intégration du ticket de bureau (frais d'expédition et de bordereau par colis livré, défaut : 15 DA).
+    \item \textbf{Calcul Déterministe de la Fayda} : Évaluation en temps réel du seuil de rentabilité et du retour net sur capital investi.
+\end{enumerate}
+
+\subsection{Formulation Mathématique de la Fayda}
+Le backend .NET prend en charge les équations fondamentales sans approximation en arithmétique décimale haute précision (\texttt{decimal}) :
+
+\begin{equation}
+    \text{Dépense Totale} = \text{Ras Lmal} + \sum_{j=1}^{n} \text{Ads Consommé}_j + (\text{Ventes Confirmées} \times \text{Ticket Bureau})
+\end{equation}
+
+\begin{equation}
+    \text{Revenu Total} = \text{Ventes Confirmées} \times \text{Prix de Vente Unitaire Effectif}
+\end{equation}
+
+\begin{equation}
+    \mathbf{Fayda} = \text{Revenu Total} - \text{Dépense Totale}
+\end{equation}
+
+\begin{equation}
+    \mathbf{ROI} = \left( \frac{\mathbf{Fayda}}{\text{Dépense Totale}} \right) \times 100\%
+\end{equation}
+
+\subsection{Contraintes Critères et Objectifs Opérationnels}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Coût d'exploitation = 0 DA} : Toutes les couches architecturales (Frontend, Backend, Base de données, Storage d'images, Scraping, Inférence LLM) doivent exploiter des tiers gratuits stables et pérennes.
+    \item \textbf{Exploitation Mobile-First} : L'un des deux associés opère exclusivement sur smartphone en déplacement. L'interface doit fonctionner sous forme de Progressive Web App (PWA), s'installer sur l'écran d'accueil et maximiser la rapidité d'entrée des métriques.
+    \item \textbf{Résilience du Stockage} : L'hébergement gratuit de conteneurs (Render/Koyeb) implique un système de fichiers volatil (\textit{ephemeral file system}). Les images ne doivent en aucun cas résider sur le serveur sous peine d'être anéanties au premier redémarrage.
+    \item \textbf{Sécurité Contrôlée} : Système restreint à deux administrateurs authentifiés par JSON Web Token (JWT). Aucun accès d'enregistrement (\textit{self-register}) n'est exposé.
+\end{itemize}
+
+% =========================================================================
+\section{Cartographie Technologique de A à Z (Stack 100\% Gratuite)}
+% =========================================================================
+
+\begin{table}[h!]
+\centering
+\small
+\renewcommand{\arraystretch}{1.3}
+\begin{tabularx}{\textwidth}{l p{3.2cm} X l}
+\toprule
+\textbf{Couche} & \textbf{Technologie} & \textbf{Rôle \& Justification Technique} & \textbf{Coût} \\
+\midrule
+\textbf{Frontend} & React 19 + Vite.js & PWA ultra-rapide, rendu instantané, gestion fluide de l'état. & 0 DA \\
+\textbf{Styling} & Tailwind / Vanilla CSS & Mobile-First, Bottom Navigation, pavé tactile adapté. & 0 DA \\
+\textbf{PWA Engine} & Vite Plugin PWA & Service Worker, Manifest JSON, cache applicatif, icônes natives. & 0 DA \\
+\textbf{Backend} & ASP.NET Core 10/9 & Web API typée, haute performance, calcul financier déterministe. & 0 DA \\
+\textbf{ORM} & EF Core + Npgsql & Mapping objet-relationnel, migrations de schéma, support \texttt{jsonb}. & 0 DA \\
+\textbf{Base Données} & PostgreSQL (Neon.tech) & 0.5 Go gratuit, SSL natif, stockage relationnel persistant. & 0 DA \\
+\textbf{Médias} & Cloudinary API & Hébergement cloud persistant, compression WebP/AVIF auto. & 0 DA \\
+\textbf{Scraping} & DuckDuckGo Search API & Dorking non bloquant, sans token, extraction gratuite de snippets. & 0 DA \\
+\textbf{Moteur IA} & Groq Cloud API & Inférence LLM 24/7 (DeepSeek-R1 / LLaMA-3.3 70B), latence < 1s. & 0 DA \\
+\textbf{Déploiement Front} & Vercel & Hébergement PWA, CDN mondial, HTTPS géré automatiquement. & 0 DA \\
+\textbf{Déploiement Back} & Render (Docker) & Conteneur Linux ASP.NET Core isolé, CI/CD depuis Git. & 0 DA \\
+\textbf{Anti-Veille} & Cron-Job.org & Requête HTTP \texttt{/health} toutes les 14 min contre le cold-start. & 0 DA \\
+\bottomrule
+\end{tabularx}
+\caption{Matrice d'ingénierie logicielle et allocation des services gratuits (0 DA)}
+\end{table}
+
+\subsection{Frontend : React 19, Vite et Spécifications PWA Mobile-First}
+Le frontend est architecturé pour reproduire la sensation tactile d'une application native Android/iOS :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Bottom Navigation Bar} : Accès permanent à portée de pouce aux 4 espaces : \textit{Laboratoire}, \textit{Produits}, \textit{Fayda Dashboard}, \textit{Paramètres}.
+    \item \textbf{Fast-Input Numérique} : Utilisation systématique de la directive HTML5 \texttt{inputMode="decimal"} sur les champs financiers (dépense Ads, prix de vente, volume). Ceci force l'affichage immédiat du pavé numérique natif du smartphone, évitant les erreurs de saisie.
+    \item \textbf{Capture Photo Directe} : Le composant d'upload produit emploie l'attribut standard :
+    \begin{center}
+        \texttt{<input type="file" accept="image/*" capture="environment" />}
+    \end{center}
+    Cette balise active sans intermédiaire l'objectif photo dorsal du téléphone pour photographier directement la marchandise reçue.
+    \item \textbf{Offline Shell} : Mise en cache des composants d'interface via Workbox pour charger l'application instantanément même en connexion 3G instable.
+\end{itemize}
+
+\subsection{Backend : C\# ASP.NET Core Web API \& Entity Framework Core}
+Le framework .NET offre une rigueur mathématique et une vitesse d'exécution incomparables :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Précision Financière} : Toutes les colonnes de montants utilisent le type \texttt{decimal} (128 bits, base 10), garantissant l'absence totale de dérive d'arrondi binaire inhérente aux types \texttt{float} ou \texttt{double}.
+    \item \textbf{Stockage Semi-Structuré (JSONB)} : La table des produits intègre une colonne \texttt{Specifications} typée en \texttt{jsonb} PostgreSQL via EF Core. Cela autorise la saisie dynamique d'attributs arbitraires (variantes de couleurs, calibres, pointures, matière) sans exiger de migrations de schéma SQL répétitives.
+    \item \textbf{Authentification Restreinte} : Émission de jetons JWT cryptographiques signés en HMAC-SHA256. La base est initialisée avec exactement 2 comptes gérants hachés en BCrypt. Aucun point de terminaison d'inscription n'est exposé.
+\end{itemize}
+
+\subsection{Gestion Volatile des Images via Cloudinary}
+Pour contourner la volatilité du disque local de Render, le flux de capture d'image adopte une stratégie d'upload direct :
+\begin{enumerate}[leftmargin=*]
+    \item L'administrateur prend la photo dans la PWA.
+    \item Le client web transmet le fichier binaire directement vers l'API Cloudinary au moyen d'un \textit{Unsigned Upload Preset} dédié et restreint.
+    \item Cloudinary effectue les transformations automatiques (conversion automatique au format WebP, dimensionnement responsive, compression sans perte perceptible).
+    \item Cloudinary retourne une URL sécurisée pérenne (ex. \texttt{https://res.cloudinary.com/.../sel3a\_894.webp}).
+    \item Seule cette chaîne textuelle est communiquée au backend .NET pour stockage dans PostgreSQL.
+    \item \textbf{Résultat} : 0 Mo d'espace disque consommé sur le serveur backend, persistance garantie à 100\% lors des cycles de sommeil du conteneur.
+\end{enumerate}
+
+\subsection{Module IA 24/7 : Groq Cloud API \& Scraping DuckDuckGo}
+En accord avec le choix de l'\textbf{Option B}, le sous-système d'intelligence artificielle est déporté dans le cloud avec une disponibilité 24h/24 sans nécessiter de machine locale :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Moteur d'inférence LLM (Groq)} : Utilisation du modèle \textbf{DeepSeek-R1-Distill-Llama-70B} ou \textbf{LLaMA-3.3-70B-Versatile} via l'API gratuite de Groq. Groq offre un débit ultra-performant (> 250 tokens/seconde) sous quota généreux gratuit, assurant un temps de réponse inférieur à 1,5 seconde.
+    \item \textbf{Scraping via DuckDuckGo API} : Utilisation de la bibliothèque Python \texttt{duckduckgo-search}. 
+    \begin{itemize}
+        \item \textbf{Avantages} : Totalement gratuit, aucune clé d'API requise, aucun blocage agressif de Captcha, pas de quota mensuel contraignant comme SerpApi.
+        \item \textbf{Requête automatisée} :
+        \begin{center}
+            \texttt{"Nom de la sel3a" (DA OR DZD) (site:facebook.com OR site:instagram.com OR site:tiktok.com) Algérie}
+        \end{center}
+    \end{itemize}
+    \item \textbf{Extraction et Normalisation Sémantique} : Le LLM filtre le bruit textuel des snippets renvoyés par DuckDuckGo, isole les prix réels en Dinars Algériens, élimine les valeurs aberrantes (frais de port ou prix grossistes), et produit un document JSON normalisé.
+\end{itemize}
+
+% =========================================================================
+\section{Modèle de Données et Architecture Relationnelle}
+% =========================================================================
+
+Le schéma relationnel est conçu pour assurer l'intégrité référentielle et la traçabilité des métriques journalières :
+
+\begin{figure}[h!]
+\centering
+\small
+\begin{tabular}{|p{3.5cm}|p{3.5cm}|p{8cm}|}
+\hline
+\textbf{Table} & \textbf{Clé / Index} & \textbf{Colonnes \& Types} \\
+\hline
+\textbf{Users} & \texttt{Id (PK, Guid)} & \texttt{Username (VarChar 50, Unique)}, \texttt{PasswordHash (Text)}, \texttt{Role (VarChar 20)}, \texttt{CreatedAt (Timestamp)} \\
+\hline
+\textbf{Products} & \texttt{Id (PK, Guid)} & \texttt{Name (VarChar 150)}, \texttt{Category (VarChar 50)}, \texttt{ImageUrl (Text)}, \texttt{Specifications (JSONB)}, \texttt{BuyPrice (Decimal)}, \texttt{TargetSellPrice (Decimal)}, \texttt{CreatedAt (Timestamp)} \\
+\hline
+\textbf{ProductTests} & \texttt{Id (PK, Guid)} \newline \texttt{ProductId (FK)} & \texttt{InitialQuantity (Int)}, \texttt{RemainingQuantity (Int)}, \texttt{RasLmal (Decimal)}, \texttt{AdsBudgetTotal (Decimal)}, \texttt{TicketBureauFee (Decimal)}, \texttt{SellingPrice (Decimal)}, \texttt{AIRecommendedPrice (Decimal)}, \texttt{Status (VarChar 20)}, \texttt{StartDate (Date)}, \texttt{EndDate (Date)} \\
+\hline
+\textbf{TestDailyMetrics} & \texttt{Id (PK, Guid)} \newline \texttt{ProductTestId (FK)} & \texttt{DayNumber (Int, 1..6)}, \texttt{MetricDate (Date)}, \texttt{AdsSpent (Decimal)}, \texttt{Impressions (Int)}, \texttt{Clicks (Int)}, \texttt{ConfirmedOrders (Int)}, \texttt{TotalRevenue (Decimal)}, \texttt{NetFayda (Decimal)}, \texttt{Notes (Text)} \\
+\hline
+\textbf{AiMarketInsights} & \texttt{Id (PK, Guid)} \newline \texttt{ProductId (FK)} & \texttt{MinObservedPrice (Decimal)}, \texttt{MaxObservedPrice (Decimal)}, \texttt{AveragePrice (Decimal)}, \texttt{PsychologicalPrice (Decimal)}, \texttt{RawJsonData (JSONB)}, \texttt{AnalyzedAt (Timestamp)} \\
+\hline
+\end{tabular}
+\caption{Spécification du dictionnaire de données PostgreSQL}
+\end{figure}
+
+% =========================================================================
+\section{Logique d'Arbitrage et Feedback des 6 Jours}
+% =========================================================================
+
+\subsection{Arrondi Psychologique Algérien}
+Les consommateurs sur les réseaux sociaux réagissent fortement aux seuils psychologiques. Le système intègre un algorithme d'ajustement automatique :
+\begin{itemize}[leftmargin=*]
+    \item Un prix brut calculé de 3 000 DA est automatiquement repositionné à \textbf{2 900 DA} ou \textbf{2 990 DA}.
+    \item Un prix intermédiaire de 4 100 DA est repositionné à \textbf{3 900 DA} pour franchir la barrière des 4 000 DA.
+\end{itemize}
+
+\subsection{Les Trois Sentinelles d'Arbitrage (Boucle de 6 Jours)}
+Durant les 6 jours de validation d'un test, le moteur d'analyse compare chaque soir les données consolidées :
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Alerte 1 : \og Prix Trop Élevé \fg{} (Jour 3)} :
+    \begin{equation}
+        \text{Condition} : \quad (\text{Jour} \ge 3) \quad \land \quad (\text{CTR} \ge 2.0\%) \quad \land \quad (\text{Ventes Confirmées} = 0)
+    \end{equation}
+    \textit{Diagnostic} : L'annonce suscite l'intérêt (bon visuel, clics nombreux), mais l'acte d'achat est bloqué sur la page d'atterrissage. Le prix de vente est supérieur au seuil d'acceptation du marché.\\
+    \textit{Action système} : Notification prioritaire recommandant une décote immédiate de 10\% à 15\% sur le prix affiché.
+
+    \item \textbf{Alerte 2 : \og Opportunité de Maximisation \fg{}} :
+    \begin{equation}
+        \text{Condition} : \quad (\text{Stock Restant} \le 25\%) \quad \land \quad (\text{Jour} \le 4) \quad \land \quad (\text{CPA} < 0.20 \times \text{Prix Vente})
+    \end{equation}
+    \textit{Diagnostic} : Forte vélocité d'écoulement du stock avec un coût par acquisition publicitaire très bas.\\
+    \textit{Action système} : Recommandation d'augmentation du prix unitaire sur le stock résiduel pour maximiser la marge nette (\textit{Fayda}) sans impacter le volume de clôture.
+
+    \item \textbf{Alerte 3 : \og Arrêt d'Urgence (Cut-Loss) \fg{}} :
+    \begin{equation}
+        \text{Condition} : \quad (\text{Ads Consommé} \ge 0.60 \times \text{Budget Total}) \quad \land \quad (\text{Ventes Confirmées} = 0)
+    \end{equation}
+    \textit{Diagnostic} : 60\% du budget sponsoring (soit $\ge 1\,200$ DA sur les 2 000 DA prévus) a été dépensé sans générer la moindre conversion.\\
+    \textit{Action système} : Alerte rouge critique avec recommandation impérative de stopper immédiatement la campagne publicitaire Meta afin de préserver les 800 DA restants du budget.
+\end{enumerate}
+
+% =========================================================================
+\section{Plan de Développement Détaillé de A à Z}
+% =========================================================================
+
+\subsection{Phase 0 : Initialisation et Préparation de l'Écosystème (Jour 1)}
+\begin{itemize}[leftmargin=*]
+    \item Création de l'arborescence du projet (\texttt{/frontend}, \texttt{/backend}, \texttt{/ai-worker}).
+    \item Souscription des comptes gratuits :
+    \begin{itemize}
+        \item Instance PostgreSQL sur \textbf{Neon.tech} (collecte de l'URI de connexion SSL).
+        \item Espace de stockage sur \textbf{Cloudinary} (création du Cloud Name et du Preset non signé).
+        \item Clé d'API gratuite sur la console \textbf{Groq Cloud}.
+    \end{itemize}
+    \item Configuration du dépôt Git avec gestion fine des variables d'environnement confidentielles (\texttt{.env}, \texttt{appsettings.Production.json} dans le \texttt{.gitignore}).
+\end{itemize}
+
+\subsection{Phase 1 : Architecture Backend .NET \& Base de Données (Jours 2 à 4)}
+\begin{itemize}[leftmargin=*]
+    \item Création du projet \texttt{dotnet new webapi -n LeLaboratoire.Api}.
+    \item Implémentation des entités de domaine (\texttt{User}, \texttt{Product}, \texttt{ProductTest}, \texttt{TestDailyMetric}).
+    \item Configuration d'\texttt{AppDbContext} avec le provider Npgsql et mapping de la propriété \texttt{Specifications} en \texttt{jsonb}.
+    \item Mise en place du module de sécurité :
+    \begin{itemize}
+        \item Seeder initial créant les 2 comptes administrateurs avec hachage BCrypt.
+        \item Contrôleur d'authentification \texttt{POST /api/auth/login} avec génération de token JWT sécurisé.
+        \item Middleware d'autorisation restreignant l'accès aux endpoints protégés.
+    \end{itemize}
+    \item Écriture des tests unitaires sur le moteur de calcul financier \texttt{FaydaCalculatorService}.
+\end{itemize}
+
+\subsection{Phase 2 : Module Médias \& Contrôleurs Métier (Jours 5 à 6)}
+\begin{itemize}[leftmargin=*]
+    \item Implémentation du contrôleur \texttt{ProductsController} (CRUD des marchandises, intégration de la référence d'image Cloudinary).
+    \item Implémentation du contrôleur \texttt{TestsController} :
+    \begin{itemize}
+        \item Démarrage d'un test 6 jours (saisie du \textit{Ras Lmal}, stock initial, budget Ads).
+        \item Enregistrement des métriques journalières (\texttt{POST /api/tests/\{id\}/metrics/day-\{n\}}).
+        \item Clôture et archivage du test avec calcul du ROI final.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Phase 3 : Interface Utilisateur PWA Mobile-First (Jours 7 à 10)}
+\begin{itemize}[leftmargin=*]
+    \item Initialisation du frontend : \texttt{npm create vite@latest frontend -- --template react}.
+    \item Installation et configuration de \texttt{vite-plugin-pwa} :
+    \begin{itemize}
+        \item Définition du fichier \texttt{manifest.json} avec mode \texttt{standalone}.
+        \item Enregistrement du Service Worker pour l'installation sur Android/iOS.
+    \end{itemize}
+    \item Développement des vues maîtresses :
+    \begin{itemize}
+        \item \textbf{BottomBar} permanente avec icônes Lucide adaptées au smartphone.
+        \item \textbf{Formulaire Fast-Input} avec pavé numérique forcé (\texttt{inputMode="decimal"}).
+        \item \textbf{Composant Caméra Terrain} déclenchant la caméra arrière et upload direct sur Cloudinary.
+        \item \textbf{Dashboard Laboratoire} avec progression visuelle des 6 jours et indicateurs couleur de la Fayda.
+    \end{itemize}
+\end{itemize}
+
+\subsection{Phase 4 : Pipeline IA 24/7 (DuckDuckGo + Groq API) (Jours 11 à 13)}
+\begin{itemize}[leftmargin=*]
+    \item Création du service Python autonome ou script exécutable :
+    \begin{itemize}
+        \item Intégration de \texttt{duckduckgo-search} pour l'exécution des Google/DDG Dorks.
+        \item Construction des requêtes ciblées sur les réseaux sociaux en Algérie.
+    \end{itemize}
+    \item Intégration du client Groq API :
+    \begin{itemize}
+        \item Élaboration du System Prompt contraignant le LLM à délivrer un schéma JSON strict.
+        \item Calcul de l'arrondi psychologique et du prix plafond suggéré.
+    \end{itemize}
+    \item Connexion avec le backend .NET via endpoint webhook ou intégration directe C\# HttpClient appelant Groq si l'on souhaite un backend unifié sans serveur Python séparé.
+\end{itemize}
+
+\subsection{Phase 5 : Déploiement Cloud 0 DA \& Intégration Continue (Jours 14 à 15)}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Dockerisation} : Rédaction d'un \texttt{Dockerfile} multi-stage optimisé pour le backend .NET (Linux Alpine).
+    \item \textbf{Déploiement Backend} : Connexion du dépôt Git à \textbf{Render.com} (plan Web Service Free).
+    \item \textbf{Déploiement Frontend} : Connexion à \textbf{Vercel} avec configuration de réécriture pour SPA (\texttt{vercel.json}).
+    \item \textbf{Configuration Keep-Alive} : Création d'une tâche récurrente sur \textbf{Cron-Job.org} envoyant une requête \texttt{GET /api/health} toutes les 14 minutes afin d'éliminer la latence de réveil du serveur gratuit.
+    \item \textbf{Recette Terrain} : Validation physique sur smartphone des flux d'upload photo, de saisie de métriques et de navigation hors-ligne.
+\end{itemize}
+
+% =========================================================================
+\section{Conclusion et Recommandations Opérationnelles}
+% =========================================================================
+Cette architecture respecte l'intégralité des exigences techniques, financières et fonctionnelles du cahier des charges :
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Absence de coût récurrent} : La synergie entre Neon, Cloudinary, Vercel, Render, Groq et DuckDuckGo garantit une exploitation à 0 DA de budget d'infrastructure.
+    \item \textbf{Efficacité opérationnelle} : La PWA supprime la friction de saisie sur le terrain pour l'administrateur nomade.
+    \item \textbf{Sécurisation du capital} : Les 3 règles d'arbitrage automatique protègent le \textit{Ras Lmal} contre les campagnes publicitaires non rentables.
+\end{itemize}
+
+L'équipe d'ingénierie est prête à lancer la Phase 0 dès validation de ce rapport.
+
+\end{document}
