@@ -135,6 +135,7 @@ export default function Sales() {
       rawImage: variant.rawImage,
       mannequinImage: variant.mannequinImage,
       sizes: variant.sizes,
+      stockEstimate: variant.stockEstimate || 8,
     });
     setQuantity(1);
     setSelectedSize(variant.sizes[0] || 'M');
@@ -417,27 +418,34 @@ export default function Sales() {
                           </span>
                         </div>
 
-                        {/* Pastilles et noms de toutes les couleurs disponibles */}
+                        {/* Pastilles et noms de toutes les couleurs disponibles (Cliquables pour vente directe) */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700 }}>
                             {variants.length} couleur{variants.length > 1 ? 's' : ''} :
                           </span>
                           <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                             {variants.map((v) => (
-                              <span
+                              <button
                                 key={v.id}
-                                title={v.name}
+                                type="button"
+                                title={`Cliquer pour vendre directement la couleur : ${v.name}`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenSaleForm(p, v);
+                                }}
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '4px',
-                                  background: 'rgba(0,0,0,0.03)',
-                                  border: '1px solid rgba(0,0,0,0.06)',
+                                  background: 'rgba(253, 242, 248, 0.85)',
+                                  border: '1px solid var(--accent-rose-border)',
                                   borderRadius: '12px',
-                                  padding: '2px 7px',
-                                  fontSize: '0.68rem',
-                                  fontWeight: 600,
+                                  padding: '3px 8px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700,
                                   color: 'var(--text-main)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
                                 }}
                               >
                                 <span
@@ -451,7 +459,7 @@ export default function Sales() {
                                   }}
                                 />
                                 {v.name.split('&')[0].trim()}
-                              </span>
+                              </button>
                             ))}
                           </div>
                         </div>
@@ -466,8 +474,9 @@ export default function Sales() {
                         }}
                         className="btn-select-product"
                       >
-                        <span>Sélectionner</span>
-                        <ChevronRight size={16} />
+                        <ShoppingBag size={15} />
+                        <span>Vendre (Choisir Couleur)</span>
+                        <ChevronRight size={15} />
                       </button>
                     </div>
                   </div>
@@ -771,34 +780,74 @@ export default function Sales() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Entête Modal */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <span className="gold-badge">Confirmation Sortie de Stock</span>
-                <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)' }}>
+            {/* Entête Modal avec Visuel Confirmé */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px', background: 'rgba(253, 242, 248, 0.7)', padding: '12px', borderRadius: '16px', border: '1px solid var(--accent-rose-border)' }}>
+              <div
+                style={{
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  border: '1.5px solid var(--accent-rose-border)',
+                  boxShadow: '0 2px 8px rgba(219, 39, 119, 0.15)',
+                  background: '#12100e',
+                }}
+              >
+                <img
+                  src={saleModalVariant.mannequinImage || saleModalVariant.rawImage}
+                  alt={saleModalVariant.colorName}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="gold-badge" style={{ fontSize: '0.65rem' }}>Vente Précise</span>
+                  <span style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 700 }}>
+                    Stock : ~{saleModalVariant.stockEstimate || 8} pcs
+                  </span>
+                </div>
+                <h2 style={{ fontSize: '1.02rem', fontWeight: 800, marginTop: '2px', color: 'var(--text-main)', lineHeight: 1.2 }}>
                   {saleModalVariant.product.name}
                 </h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
                   <span
                     style={{
                       width: '10px',
                       height: '10px',
                       borderRadius: '50%',
                       background: saleModalVariant.colorHex,
+                      border: '1px solid rgba(0,0,0,0.2)',
                       display: 'inline-block',
                     }}
                   />
-                  <span style={{ fontSize: '0.78rem', color: 'var(--accent-rose-dark)', fontWeight: 700 }}>
-                    Couleur sélectionnée : {saleModalVariant.colorName}
+                  <span style={{ fontSize: '0.78rem', color: 'var(--accent-rose-dark)', fontWeight: 800 }}>
+                    {saleModalVariant.colorName}
                   </span>
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={() => setSaleModalVariant(null)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: '0.9rem', cursor: 'pointer' }}
+                style={{
+                  background: '#fff',
+                  border: '1px solid var(--border-card)',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                }}
               >
-                Fermer
+                ✕
               </button>
             </div>
 
