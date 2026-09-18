@@ -29,7 +29,10 @@ yarn-error.log*
 # IDE & OS
 .vscode/
 .idea/
+.DS_Store
 Thumbs.db
+scratch/
+
 [Dd]esktop.ini
 .DS_Store
 

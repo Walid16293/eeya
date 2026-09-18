@@ -88,10 +88,12 @@ builder.Services.AddCors(options =>
 });
 
 // 5. Inversion de Contrôle & Services Métier
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IFaydaCalculatorService, FaydaCalculatorService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddHttpClient<IMarketAiService, MarketAiService>();
 builder.Services.AddHttpClient<IColorDetectionService, ColorDetectionService>();
+builder.Services.AddSingleton<IMannequinService, MannequinService>();
 
 var app = builder.Build();
 

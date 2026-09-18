@@ -17,6 +17,19 @@ public class DetectColorsBatchRequest
     public List<string> ImageUrls { get; set; } = new();
 }
 
+public class GenerateMannequinRequest
+{
+    public string ColorName { get; set; } = string.Empty;
+    public string Hex { get; set; } = string.Empty;
+    public string? Category { get; set; }
+    public string? ImageUrl { get; set; }
+}
+
+public class GenerateMannequinBatchRequest
+{
+    public List<GenerateMannequinRequest> Items { get; set; } = new();
+}
+
 [ApiController]
 [Route("api/[controller]")]
 public class AiController : ControllerBase
@@ -24,17 +37,20 @@ public class AiController : ControllerBase
     private readonly AppDbContext _context;
     private readonly IMarketAiService _marketAiService;
     private readonly IColorDetectionService _colorDetectionService;
+    private readonly IMannequinService _mannequinService;
     private readonly ILogger<AiController> _logger;
 
     public AiController(
         AppDbContext context,
         IMarketAiService marketAiService,
         IColorDetectionService colorDetectionService,
+        IMannequinService mannequinService,
         ILogger<AiController> logger)
     {
         _context = context;
         _marketAiService = marketAiService;
         _colorDetectionService = colorDetectionService;
+        _mannequinService = mannequinService;
         _logger = logger;
     }
 
@@ -104,5 +120,59 @@ public class AiController : ControllerBase
         await using var stream = file.OpenReadStream();
         var result = await _colorDetectionService.DetectColorFromStreamAsync(stream);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Création en ligne des 3 vues salon mannequin (Face, Profil, Dos) pour une couleur
+    /// </summary>
+    [HttpPost("generate-mannequin")]
+    [AllowAnonymous]
+    public async Task<ActionResult<MannequinViewsResult>> GenerateMannequin([FromBody] GenerateMannequinRequest request)
+    {
+        _logger.LogInformation("Génération en ligne des vues salon mannequin pour la couleur : {Color}, Hex: {Hex}, Catégorie: {Cat}",
+            request.ColorName, request.Hex, request.Category);
+
+        var result = await _mannequinService.GenerateViewsAsync(request.ColorName, request.Hex, request.Category, request.ImageUrl);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Création par lot en ligne des 3 vues salon mannequin pour toutes les couleurs d'un produit
+    /// </summary>
+    [HttpPost("generate-mannequin-batch")]
+    [AllowAnonymous]
+    public async Task<ActionResult<List<MannequinViewsResult>>> GenerateMannequinBatch([FromBody] GenerateMannequinBatchRequest request)
+    {
+        if (request.Items == null || request.Items.Count == 0)
+        {
+            return BadRequest(new { message = "Au moins un élément est requis." });
+        }
+
+        _logger.LogInformation("Génération en ligne par lot pour {Count} déclinaisons de couleurs", request.Items.Count);
+
+        var items = request.Items.Select(i => (i.ColorName, i.Hex, i.Category, i.ImageUrl)).ToList();
+        var results = await _mannequinService.GenerateViewsBatchAsync(items);
+        return Ok(results);
+    }
+
+    /// <summary>
+    /// Distribution/Streaming en direct des photos du salon mannequin sous l'angle demandé
+    /// </summary>
+    [HttpGet("mannequin-image")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetMannequinImage(
+        [FromQuery] string hex,
+        [FromQuery] string angle = "front",
+        [FromQuery] string? cat = null,
+        [FromQuery] string? color = null)
+    {
+        var bytes = await _mannequinService.GetMannequinImageAsync(hex, angle, cat, color);
+        if (bytes == null || bytes.Length == 0)
+        {
+            return NotFound(new { message = "Image mannequin introuvable ou non générable." });
+        }
+
+        Response.Headers.Append("Cache-Control", "public, max-age=31536000, immutable");
+        return File(bytes, "image/jpeg");
     }
 }

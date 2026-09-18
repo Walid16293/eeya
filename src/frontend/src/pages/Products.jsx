@@ -94,31 +94,63 @@ export default function Products() {
         }));
       }
 
-      // 2. Génération & habillage des 3 angles salon mannequin
-      await new Promise((r) => setTimeout(r, 500));
+      // 2. Création en ligne des 3 vues salon mannequin par l'Agent Serveur
       setAddProgress((prev) => ({
         ...prev,
         step: 2,
-        message: 'Génération & habillage des vues mannequin salon réel...',
-        logs: [...prev.logs, 'Intégration du vêtement dans le salon réel (canapé beige & rideaux)...'],
+        message: `Agent IA Studio : Génération en ligne des vues salon (${category})...`,
+        logs: [
+          ...prev.logs,
+          `Appel de l'Agent IA Studio sur le serveur pour la catégorie "${category}"...`,
+          `Synthèse en ligne des 3 angles (Face, Profil 45°, Dos) pour ${detectedVariantsData.length} couleur(s)...`,
+        ],
       }));
 
+      const batchItems = detectedVariantsData.map((v) => ({
+        colorName: v.colorName,
+        hex: v.hex,
+        category: category.trim(),
+        imageUrl: v.url,
+      }));
+
+      let generatedViewsList = [];
+      try {
+        generatedViewsList = await api.generateMannequinBatch(batchItems);
+      } catch (genErr) {
+        console.warn('Génération en ligne par lot non bloquante, repli URLs directes...', genErr);
+      }
+
       const variants = detectedVariantsData.map((item, idx) => {
-        const views = getMannequinViewsForColor(item.colorName, item.hex);
+        const gen = (generatedViewsList && generatedViewsList[idx]) ? generatedViewsList[idx] : {};
+        const front = gen.front || api.getMannequinImageUrl(item.hex, 'front', category, item.colorName);
+        const side = gen.side || api.getMannequinImageUrl(item.hex, 'side', category, item.colorName);
+        const back = gen.back || api.getMannequinImageUrl(item.hex, 'back', category, item.colorName);
+
         return {
           id: `var-${Date.now()}-${idx}`,
-          color: views.colorName || item.colorName,
-          hex: views.hex || item.hex,
+          color: gen.colorName || item.colorName,
+          hex: gen.hex || item.hex,
+          category: category.trim(),
           originalImage: item.url,
-          mannequinFront: views.front,
-          mannequinSide: views.side,
-          mannequinBack: views.back,
+          mannequinFront: front,
+          mannequinSide: side,
+          mannequinBack: back,
           stock: 8,
         };
       });
 
+      for (let idx = 0; idx < variants.length; idx++) {
+        setAddProgress((prev) => ({
+          ...prev,
+          logs: [
+            ...prev.logs,
+            `✓ Couleur "${variants[idx].color}" : 3 vues salon mannequin créées en ligne (${category}) !`,
+          ],
+        }));
+      }
+
       // 3. Persistance en BDD PostgreSQL Neon
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 400));
       setAddProgress((prev) => ({
         ...prev,
         step: 3,
@@ -131,10 +163,11 @@ export default function Products() {
         couleurs: variants.map((v) => v.color),
         images: imageUrls,
         variants: variants,
+        category: category.trim(),
         mannequinViews: {
-          front: variants[0]?.mannequinFront || '/mannequin/mannequin_salon_front.png',
-          side: variants[0]?.mannequinSide || '/mannequin/mannequin_salon_side.png',
-          back: variants[0]?.mannequinBack || '/mannequin/mannequin_salon_back.png',
+          front: variants[0]?.mannequinFront || api.getMannequinImageUrl(variants[0]?.hex || '#f4b8c9', 'front', category, variants[0]?.color),
+          side: variants[0]?.mannequinSide || api.getMannequinImageUrl(variants[0]?.hex || '#f4b8c9', 'side', category, variants[0]?.color),
+          back: variants[0]?.mannequinBack || api.getMannequinImageUrl(variants[0]?.hex || '#f4b8c9', 'back', category, variants[0]?.color),
         },
       };
 
@@ -492,12 +525,48 @@ export default function Products() {
               </div>
 
               <div className="input-group">
-                <label className="input-label">Catégorie</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label className="input-label" style={{ marginBottom: 0 }}>Catégorie (Adaptation Mannequin IA)</label>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)' }}>Studio Auto</span>
+                </div>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'Pyjamas', icon: '✨', label: 'Pyjamas' },
+                    { id: 'Shorts', icon: '🩳', label: 'Shorts' },
+                    { id: 'Robes', icon: '👗', label: 'Robes' },
+                    { id: 'Tricots', icon: '🧶', label: 'Tricots' },
+                    { id: 'Pantalons', icon: '👖', label: 'Pantalons' },
+                    { id: 'Ensembles', icon: '👚', label: 'Ensembles' },
+                  ].map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setCategory(c.id)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '20px',
+                        border: category.toLowerCase() === c.id.toLowerCase() ? '1.5px solid var(--accent-rose)' : '1px solid rgba(255,255,255,0.12)',
+                        background: category.toLowerCase() === c.id.toLowerCase() ? 'rgba(244, 114, 182, 0.18)' : 'rgba(255,255,255,0.04)',
+                        color: category.toLowerCase() === c.id.toLowerCase() ? 'var(--accent-rose)' : 'var(--text-dim)',
+                        fontSize: '0.76rem',
+                        fontWeight: category.toLowerCase() === c.id.toLowerCase() ? 700 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <span>{c.icon}</span>
+                      <span>{c.label}</span>
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  placeholder="Ex: Pyjamas, Vêtements, Lingerie..."
+                  placeholder="Ex: Pyjamas, Shorts, Robes, Tricots..."
                   className="fast-input"
                   style={{ fontSize: '0.95rem', padding: '12px' }}
                 />

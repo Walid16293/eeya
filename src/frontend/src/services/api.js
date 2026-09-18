@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app') ? 'https://eeya-1.onrender.com' : '');
 
 function getAuthHeader() {
   const token = localStorage.getItem('laboratoire_token');
@@ -189,6 +189,53 @@ export const api = {
     });
     if (!res.ok) throw new Error('Erreur détection couleur serveur');
     return await res.json();
+  },
+
+  // --- GÉNÉRATION EN LIGNE DES VUES SALON MANNEQUIN PAR L'AGENT SERVEUR ---
+  getMannequinImageUrl(hex = 'f4b8c9', angle = 'front', category = 'Pyjamas', colorName = '') {
+    const cleanHex = (hex || 'f4b8c9').replace('#', '').toLowerCase();
+    const cleanAngle = ['front', 'side', 'back'].includes(angle) ? angle : 'front';
+    const cat = encodeURIComponent(category || 'Pyjamas');
+    const col = encodeURIComponent(colorName || '');
+    return `${API_BASE_URL}/api/ai/mannequin-image?hex=${cleanHex}&angle=${cleanAngle}&cat=${cat}&color=${col}`;
+  },
+
+  async generateMannequinViews({ colorName, hex, category = 'Pyjamas', imageUrl = '' }) {
+    try {
+      return await request('/api/ai/generate-mannequin', {
+        method: 'POST',
+        body: JSON.stringify({ colorName, hex, category, imageUrl }),
+      });
+    } catch (err) {
+      console.warn('Fallback direct streaming mannequin URL...', err);
+      return {
+        front: this.getMannequinImageUrl(hex, 'front', category, colorName),
+        side: this.getMannequinImageUrl(hex, 'side', category, colorName),
+        back: this.getMannequinImageUrl(hex, 'back', category, colorName),
+        colorName,
+        hex,
+        category,
+      };
+    }
+  },
+
+  async generateMannequinBatch(items = []) {
+    try {
+      return await request('/api/ai/generate-mannequin-batch', {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+      });
+    } catch (err) {
+      console.warn('Fallback batch direct streaming mannequin URLs...', err);
+      return items.map((item) => ({
+        front: this.getMannequinImageUrl(item.hex, 'front', item.category, item.colorName),
+        side: this.getMannequinImageUrl(item.hex, 'side', item.category, item.colorName),
+        back: this.getMannequinImageUrl(item.hex, 'back', item.category, item.colorName),
+        colorName: item.colorName,
+        hex: item.hex,
+        category: item.category || 'Pyjamas',
+      }));
+    }
   },
 
   // --- SANTÉ DU SERVEUR ---
