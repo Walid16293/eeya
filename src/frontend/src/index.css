@@ -474,6 +474,71 @@ h1, h2, .brand-title {
   border-color: var(--accent-rose);
 }
 
+/* Barre de Recherche Luxueuse & Responsive */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #ffffff;
+  border: 1.5px solid var(--accent-rose-border);
+  border-radius: 16px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 14px rgba(219, 39, 119, 0.06);
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.search-bar:focus-within {
+  border-color: var(--accent-rose);
+  box-shadow: 0 6px 20px rgba(219, 39, 119, 0.16);
+  transform: translateY(-1px);
+}
+
+.search-bar input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.92rem;
+  color: var(--text-main);
+  width: 100%;
+}
+
+.search-bar input::placeholder {
+  color: var(--text-dim);
+}
+
+/* Bouton Sélectionner les Couleurs du Produit (Anti-écrasement) */
+.btn-select-product {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #f472b6, #db2777);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 10px 18px;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(219, 39, 119, 0.28);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-select-product:hover {
+  background: linear-gradient(135deg, #ec4899, #be185d);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(219, 39, 119, 0.35);
+}
+
+.btn-select-product:active {
+  transform: scale(0.97);
+}
+
 /* Bottom Navigation Bar (Rose & Crème Poudrée) */
 .bottom-nav {
   position: fixed;

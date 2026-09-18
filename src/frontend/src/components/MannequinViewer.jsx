@@ -11,8 +11,9 @@ import {
   Share2,
   Maximize2
 } from 'lucide-react';
+import { getMannequinViewsForColor } from '../services/mannequinMatcher';
 
-export default function MannequinViewer({ product, onClose, onSaveMannequinViews }) {
+export default function MannequinViewer({ product, onClose, onSaveMannequinViews, initialColor = null }) {
   // Specs du produit
   let specs = {};
   try {
@@ -21,19 +22,59 @@ export default function MannequinViewer({ product, onClose, onSaveMannequinViews
       : (product.specifications || {});
   } catch (_) {}
 
-  // Vues du mannequin (face, côté, arrière)
-  const existingViews = specs.mannequinViews || {};
+  // Déterminer la liste des variantes de couleur
+  const variants = (specs.variants && Array.isArray(specs.variants) && specs.variants.length > 0)
+    ? specs.variants.map((v) => {
+        const matched = getMannequinViewsForColor(v.color, v.hex);
+        return {
+          id: v.id,
+          color: v.color || matched.colorName,
+          hex: v.hex || matched.hex,
+          originalImage: v.originalImage || product.imageUrl,
+          mannequinFront: v.mannequinFront || matched.front,
+          mannequinSide: v.mannequinSide || matched.side,
+          mannequinBack: v.mannequinBack || matched.back,
+        };
+      })
+    : (specs.couleurs && specs.couleurs.length > 0)
+      ? specs.couleurs.map((col, idx) => {
+          const matched = getMannequinViewsForColor(col);
+          return {
+            id: `var-${idx}`,
+            color: col,
+            hex: matched.hex,
+            originalImage: specs.images?.[idx] || product.imageUrl,
+            mannequinFront: matched.front,
+            mannequinSide: matched.side,
+            mannequinBack: matched.back,
+          };
+        })
+      : [{
+          id: 'var-default',
+          color: 'Rose Poudré',
+          hex: '#f4b8c9',
+          originalImage: product.imageUrl,
+          mannequinFront: specs.mannequinViews?.front || '/mannequin/mannequin_salon_front.png',
+          mannequinSide: specs.mannequinViews?.side || '/mannequin/mannequin_salon_side.png',
+          mannequinBack: specs.mannequinViews?.back || '/mannequin/mannequin_salon_back.png',
+        }];
 
-  // Vues par défaut ou générées dans le décor salon réel (backend.png)
-  const [views, setViews] = useState({
-    front: existingViews.front || '/mannequin/mannequin_salon_front.png',
-    side: existingViews.side || '/mannequin/mannequin_salon_side.png',
-    back: existingViews.back || '/mannequin/mannequin_salon_back.png',
-    flat: product.imageUrl || '/mannequin/mannequin_salon_front.png',
-  });
+  // Déterminer l'index initial selon initialColor si spécifié
+  const initialIndex = initialColor 
+    ? Math.max(0, variants.findIndex((v) => v.color.toLowerCase() === initialColor.toLowerCase()))
+    : 0;
 
+  const [selectedVariantIdx, setSelectedVariantIdx] = useState(initialIndex);
   const [activeAngle, setActiveAngle] = useState('front'); // 'front' | 'side' | 'back' | 'flat'
-  const [generating, setGenerating] = useState(false);
+
+  const currentVariant = variants[selectedVariantIdx] || variants[0];
+
+  const views = {
+    front: currentVariant.mannequinFront || '/mannequin/mannequin_salon_front.png',
+    side: currentVariant.mannequinSide || '/mannequin/mannequin_salon_side.png',
+    back: currentVariant.mannequinBack || '/mannequin/mannequin_salon_back.png',
+    flat: currentVariant.originalImage || product.imageUrl || '/mannequin/mannequin_salon_front.png',
+  };
 
   const angles = [
     { id: 'front', label: 'Face Salon', icon: '👗', desc: 'Mannequin de face dans le décor réel (canapé & rideaux)' },
@@ -136,6 +177,62 @@ export default function MannequinViewer({ product, onClose, onSaveMannequinViews
             <X size={18} />
           </button>
         </div>
+
+        {/* Sélecteur de Déclinaisons de Couleur si plusieurs variantes */}
+        {variants.length > 1 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+              Sélectionnez une couleur à afficher sur le mannequin :
+            </span>
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                overflowX: 'auto',
+                paddingBottom: '4px',
+              }}
+            >
+              {variants.map((v, idx) => {
+                const isSelected = selectedVariantIdx === idx;
+                return (
+                  <button
+                    key={v.id || idx}
+                    type="button"
+                    onClick={() => setSelectedVariantIdx(idx)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 12px',
+                      borderRadius: '20px',
+                      background: isSelected ? 'linear-gradient(135deg, #fbcfe8, #f472b6)' : 'rgba(255,255,255,0.08)',
+                      color: isSelected ? '#831843' : '#e7e5e4',
+                      border: isSelected ? '1.5px solid var(--accent-rose)' : '1px solid rgba(255,255,255,0.12)',
+                      fontWeight: isSelected ? 800 : 600,
+                      fontSize: '0.74rem',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      boxShadow: isSelected ? '0 4px 12px rgba(244, 114, 182, 0.3)' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        background: v.hex,
+                        border: '1px solid rgba(0,0,0,0.2)',
+                        display: 'inline-block',
+                      }}
+                    />
+                    <span>{v.color}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Sélecteur des 4 Modes (Face, Profil, Dos, Photo Brute) */}
         <div

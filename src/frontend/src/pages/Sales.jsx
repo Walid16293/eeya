@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import FastInput from '../components/FastInput';
+import MannequinViewer from '../components/MannequinViewer';
+import { getMannequinViewsForColor } from '../services/mannequinMatcher';
 
 export default function Sales() {
   const [products, setProducts] = useState([]);
@@ -27,6 +29,7 @@ export default function Sales() {
   
   // Navigation hiérarchique : null = vue globale, sinon le produit sélectionné
   const [activeProductView, setActiveProductView] = useState(null);
+  const [activeMannequinView, setActiveMannequinView] = useState(null); // { product, color }
 
   // Ventes enregistrées (persistées localement et synchronisées)
   const [salesHistory, setSalesHistory] = useState([]);
@@ -67,7 +70,7 @@ export default function Sales() {
 
   /**
    * Construit la liste des variantes de couleur pour un produit donné
-   * avec pour chaque couleur : sa photo originale et sa vue face mannequin salon
+   * avec pour chaque couleur : sa photo originale et ses vues mannequin salon
    */
   const getProductColorVariants = (product) => {
     let specs = {};
@@ -77,48 +80,51 @@ export default function Sales() {
         : (product.specifications || {});
     } catch (_) {}
 
-    const imagesList = specs.images || (product.imageUrl ? [product.imageUrl] : []);
-    const colorsList = specs.couleurs || ['Rose poudré', 'Marron caramel'];
-    const sizesList = specs.tailles || ['S', 'M', 'L', 'XL'];
-
-    // Dictionnaire d'association des couleurs avec leurs images (originale & mannequin face salon)
-    const variants = [
-      {
-        id: 'color-rose',
-        name: 'Rose Poudré & Carreaux',
-        hex: '#f4b8c9',
-        rawImage: imagesList[0] || '/images/photo_2026-09-18_17-38-32.jpg',
-        mannequinImage: '/mannequin/mannequin_salon_front.png',
-        sizes: sizesList,
-        stockEstimate: 6,
-      },
-      {
-        id: 'color-caramel',
-        name: 'Marron Caramel & Carreaux',
-        hex: '#b06d40',
-        rawImage: imagesList[1] || imagesList[0] || '/images/photo_2026-09-18_17-38-35.jpg',
-        mannequinImage: '/mannequin/mannequin_caramel_front.png',
-        sizes: sizesList,
-        stockEstimate: 5,
-      },
-    ];
-
-    // Si d'autres couleurs sont déclarées par l'utilisateur
-    if (colorsList.length > 2) {
-      for (let i = 2; i < colorsList.length; i++) {
-        variants.push({
-          id: `color-${i}`,
-          name: colorsList[i],
-          hex: '#cbd5e1',
-          rawImage: imagesList[i] || imagesList[0] || product.imageUrl,
-          mannequinImage: '/mannequin/mannequin_salon_front.png',
-          sizes: sizesList,
-          stockEstimate: 4,
-        });
-      }
+    // 1. Si les variantes existent déjà dans la base de données PostgreSQL Neon :
+    if (specs.variants && Array.isArray(specs.variants) && specs.variants.length > 0) {
+      return specs.variants.map((v) => {
+        const matched = getMannequinViewsForColor(v.color, v.hex);
+        return {
+          id: v.id || `var-${v.color}`,
+          name: v.color || matched.colorName,
+          hex: v.hex || matched.hex,
+          rawImage: v.originalImage || product.imageUrl,
+          mannequinImage: v.mannequinFront || matched.front,
+          mannequinSide: v.mannequinSide || matched.side,
+          mannequinBack: v.mannequinBack || matched.back,
+          sizes: specs.tailles || ['S', 'M', 'L', 'XL'],
+          stockEstimate: v.stock !== undefined ? v.stock : 8,
+        };
+      });
     }
 
-    return variants;
+    // 2. Si le produit a plusieurs images importées dans la BDD (images: [...]) :
+    const imagesList = (specs.images && specs.images.length > 0) 
+      ? specs.images 
+      : (product.imageUrl ? [product.imageUrl] : []);
+    const colorsList = specs.couleurs || [];
+    const sizesList = specs.tailles || ['S', 'M', 'L', 'XL'];
+
+    return imagesList.map((imgUrl, idx) => {
+      let colorName = colorsList[idx];
+      if (!colorName) {
+        colorName = idx === 0 ? 'Rose Poudré & Carreaux' : (idx === 1 ? 'Marron Caramel & Carreaux' : (idx === 2 ? 'Noir & Carreaux' : (idx === 3 ? 'Vert Sauge & Rayures' : 'Blanc Crème & Carreaux')));
+      }
+
+      const matched = getMannequinViewsForColor(colorName);
+
+      return {
+        id: `var-${product.id}-${idx}`,
+        name: matched.colorName || colorName,
+        hex: matched.hex,
+        rawImage: imgUrl,
+        mannequinImage: matched.front,
+        mannequinSide: matched.side,
+        mannequinBack: matched.back,
+        sizes: sizesList,
+        stockEstimate: 8,
+      };
+    });
   };
 
   const handleOpenSaleForm = (product, variant) => {
@@ -163,14 +169,40 @@ export default function Sales() {
       channel,
     };
 
-    // 1. Sauvegarder dans l'historique
+    // 1. Sauvegarder dans l'historique local
     const updatedHistory = [newSale, ...salesHistory];
     setSalesHistory(updatedHistory);
     try {
       localStorage.setItem('le_laboratoire_sales', JSON.stringify(updatedHistory));
     } catch (_) {}
 
-    // 2. Si un test actif existe pour ce produit, synchroniser avec le bilan du jour
+    // 2. Décrémenter le stock dans la base de données PostgreSQL Neon
+    try {
+      let currentSpecs = {};
+      try {
+        currentSpecs = typeof saleModalVariant.product.specifications === 'string'
+          ? JSON.parse(saleModalVariant.product.specifications || '{}')
+          : (saleModalVariant.product.specifications || {});
+      } catch (_) {}
+
+      if (currentSpecs.variants && Array.isArray(currentSpecs.variants)) {
+        currentSpecs.variants = currentSpecs.variants.map((v) => {
+          if (v.color === saleModalVariant.colorName) {
+            return { ...v, stock: Math.max(0, (v.stock || 8) - quantity) };
+          }
+          return v;
+        });
+
+        await api.updateProduct(saleModalVariant.product.id, {
+          specifications: JSON.stringify(currentSpecs),
+        });
+        loadData();
+      }
+    } catch (err) {
+      console.warn('Erreur synchronisation stock BDD:', err);
+    }
+
+    // 3. Si un test actif existe pour ce produit, synchroniser avec le bilan du jour
     if (activeTest && activeTest.productId === saleModalVariant.product.id) {
       try {
         const currentDay = activeTest.currentDay || 1;
@@ -305,43 +337,62 @@ export default function Sales() {
             ) : (
               filteredProducts.map((p) => {
                 const variants = getProductColorVariants(p);
+                const totalStock = variants.reduce((sum, v) => sum + (v.stockEstimate || 0), 0);
 
                 return (
                   <div
                     key={p.id}
                     className="glass-card"
                     style={{
-                      padding: '16px',
+                      padding: '16px 18px',
+                      margin: '10px 0',
                       cursor: 'pointer',
-                      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                      transition: 'all 0.2s ease',
+                      background: '#ffffff',
+                      border: '1.5px solid var(--accent-rose-border)',
+                      borderRadius: '20px',
+                      boxShadow: '0 4px 16px rgba(219, 39, 119, 0.06)',
                     }}
                     onClick={() => setActiveProductView(p)}
                   >
-                    <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                       {/* Photo Couverture */}
                       <div
                         style={{
-                          width: '74px',
-                          height: '74px',
-                          borderRadius: '14px',
+                          width: '82px',
+                          height: '82px',
+                          borderRadius: '16px',
                           overflow: 'hidden',
                           flexShrink: 0,
-                          border: '1.5px solid var(--accent-rose-border)',
-                          boxShadow: '0 4px 10px rgba(219, 39, 119, 0.12)',
+                          border: '2px solid var(--accent-rose-border)',
+                          boxShadow: '0 4px 12px rgba(219, 39, 119, 0.12)',
+                          background: '#fdf4ff',
                         }}
                       >
                         <img
-                          src={p.imageUrl || '/mannequin/mannequin_salon_front.png'}
+                          src={variants[0]?.rawImage || p.imageUrl || '/mannequin/mannequin_salon_front.png'}
                           alt={p.name}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
                       </div>
 
                       {/* Infos Produit */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.66rem', color: 'var(--accent-rose-dark)', fontWeight: 800, textTransform: 'uppercase' }}>
+                      <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.68rem', color: 'var(--accent-rose-dark)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             {p.category}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              background: 'rgba(16, 185, 129, 0.1)',
+                              color: '#059669',
+                              padding: '2px 8px',
+                              borderRadius: '20px',
+                            }}
+                          >
+                            Stock : {totalStock} pcs
                           </span>
                           {p.hasActiveTest && (
                             <span className="tag tag-active" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
@@ -350,59 +401,74 @@ export default function Sales() {
                           )}
                         </div>
 
-                        <h3 style={{ fontSize: '0.98rem', fontWeight: 800, marginTop: '2px', color: 'var(--text-main)' }}>
+                        <h3 style={{ fontSize: '1.02rem', fontWeight: 800, marginTop: '3px', color: 'var(--text-main)', lineHeight: 1.25 }}>
                           {p.name}
                         </h3>
 
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline', marginTop: '4px' }}>
-                          <span style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', fontFamily: 'JetBrains Mono' }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'baseline', marginTop: '4px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '1.08rem', fontWeight: 800, color: '#10b981', fontFamily: 'JetBrains Mono' }}>
                             {p.targetSellPrice.toLocaleString()} DA
                           </span>
                           <span style={{ fontSize: '0.74rem', color: 'var(--text-dim)' }}>
                             (Achat : {p.buyPrice.toLocaleString()} DA)
                           </span>
+                          <span style={{ fontSize: '0.74rem', color: 'var(--accent-rose-dark)', fontWeight: 700 }}>
+                            • Fayda : +{(p.targetSellPrice - p.buyPrice).toLocaleString()} DA
+                          </span>
                         </div>
 
-                        {/* Pastilles des couleurs disponibles */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                        {/* Pastilles et noms de toutes les couleurs disponibles */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700 }}>
                             {variants.length} couleur{variants.length > 1 ? 's' : ''} :
                           </span>
-                          <div style={{ display: 'flex', gap: '4px' }}>
+                          <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
                             {variants.map((v) => (
                               <span
                                 key={v.id}
                                 title={v.name}
                                 style={{
-                                  width: '12px',
-                                  height: '12px',
-                                  borderRadius: '50%',
-                                  background: v.hex,
-                                  border: '1px solid rgba(0,0,0,0.2)',
-                                  display: 'inline-block',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  background: 'rgba(0,0,0,0.03)',
+                                  border: '1px solid rgba(0,0,0,0.06)',
+                                  borderRadius: '12px',
+                                  padding: '2px 7px',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 600,
+                                  color: 'var(--text-main)',
                                 }}
-                              />
+                              >
+                                <span
+                                  style={{
+                                    width: '9px',
+                                    height: '9px',
+                                    borderRadius: '50%',
+                                    background: v.hex,
+                                    border: '1px solid rgba(0,0,0,0.2)',
+                                    display: 'inline-block',
+                                  }}
+                                />
+                                {v.name.split('&')[0].trim()}
+                              </span>
                             ))}
                           </div>
                         </div>
                       </div>
 
-                      {/* Flèche d'entrée */}
-                      <div
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '50%',
-                          background: 'linear-gradient(135deg, rgba(244, 114, 182, 0.2), rgba(219, 39, 119, 0.2))',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'var(--accent-rose-dark)',
-                          flexShrink: 0,
+                      {/* Bouton Sélectionner les Couleurs (Propre et Sans Écrasement) */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveProductView(p);
                         }}
+                        className="btn-select-product"
                       >
-                        <ChevronRight size={18} />
-                      </div>
+                        <span>Sélectionner</span>
+                        <ChevronRight size={16} />
+                      </button>
                     </div>
                   </div>
                 );
@@ -566,21 +632,41 @@ export default function Sales() {
                   </div>
                 </div>
 
-                {/* BOUTON D'ACTION : VENDRE CETTE COULEUR */}
-                <button
-                  type="button"
-                  onClick={() => handleOpenSaleForm(activeProductView, variant)}
-                  className="btn-primary"
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '0.86rem',
-                    borderRadius: '14px',
-                  }}
-                >
-                  <ShoppingBag size={16} />
-                  <span>Vendre cette couleur ({variant.name})</span>
-                </button>
+                {/* ACTIONS : 3 ANGLES SALON OU VENDRE CETTE COULEUR */}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMannequinView({ product: activeProductView, color: variant.name })}
+                    className="btn-secondary"
+                    style={{
+                      flex: '1 1 140px',
+                      padding: '11px',
+                      fontSize: '0.8rem',
+                      borderColor: 'var(--accent-rose-border)',
+                      background: 'rgba(253, 242, 248, 0.7)',
+                      color: 'var(--accent-rose-dark)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <Eye size={15} color="var(--accent-rose)" />
+                    <span>👗 3 Angles Salon</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenSaleForm(activeProductView, variant)}
+                    className="btn-primary"
+                    style={{
+                      flex: '2 1 180px',
+                      padding: '11px 14px',
+                      fontSize: '0.84rem',
+                      borderRadius: '12px',
+                    }}
+                  >
+                    <ShoppingBag size={16} />
+                    <span>Vendre cette couleur ({variant.name})</span>
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -849,6 +935,15 @@ export default function Sales() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* STUDIO MANNEQUIN 3 ANGLES (SALON RÉEL) */}
+      {activeMannequinView && (
+        <MannequinViewer
+          product={activeMannequinView.product}
+          initialColor={activeMannequinView.color}
+          onClose={() => setActiveMannequinView(null)}
+        />
       )}
     </div>
   );

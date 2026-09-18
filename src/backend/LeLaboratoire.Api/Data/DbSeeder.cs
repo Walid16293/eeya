@@ -59,10 +59,10 @@ public static class DbSeeder
                 Id = Guid.NewGuid(),
                 Name = "Ensemble Pyjama Côtelé & Pantalon Carreaux",
                 Category = "Pyjamas",
-                ImageUrl = "/mannequin/pyjama_rose_front.png",
+                ImageUrl = "/mannequin/mannequin_salon_front.png",
                 BuyPrice = 1200m,
                 TargetSellPrice = 2900m,
-                Specifications = "{\"tailles\": [\"S\", \"M\", \"L\", \"XL\"], \"couleurs\": [\"Rose poudré\", \"Beige crème\"], \"images\": [\"/mannequin/pyjama_rose_front.png\", \"/mannequin/pyjama_rose_side.png\", \"/mannequin/pyjama_rose_back.png\"], \"mannequinViews\": {\"front\": \"/mannequin/pyjama_rose_front.png\", \"side\": \"/mannequin/pyjama_rose_side.png\", \"back\": \"/mannequin/pyjama_rose_back.png\"}}",
+                Specifications = "{\"tailles\": [\"S\", \"M\", \"L\", \"XL\"], \"couleurs\": [\"Rose Poudré & Carreaux\", \"Marron Caramel & Carreaux\"], \"images\": [\"/images/photo_2026-09-18_17-38-32.jpg\", \"/images/photo_2026-09-18_17-38-35.jpg\"], \"variants\": [{\"id\": \"var-rose\", \"color\": \"Rose Poudré & Carreaux\", \"hex\": \"#f4b8c9\", \"originalImage\": \"/images/photo_2026-09-18_17-38-32.jpg\", \"mannequinFront\": \"/mannequin/mannequin_salon_front.png\", \"mannequinSide\": \"/mannequin/mannequin_salon_side.png\", \"mannequinBack\": \"/mannequin/mannequin_salon_back.png\", \"stock\": 8}, {\"id\": \"var-caramel\", \"color\": \"Marron Caramel & Carreaux\", \"hex\": \"#b06d40\", \"originalImage\": \"/images/photo_2026-09-18_17-38-35.jpg\", \"mannequinFront\": \"/mannequin/mannequin_caramel_front.png\", \"mannequinSide\": \"/mannequin/mannequin_salon_side.png\", \"mannequinBack\": \"/mannequin/mannequin_salon_back.png\", \"stock\": 8}], \"mannequinViews\": {\"front\": \"/mannequin/mannequin_salon_front.png\", \"side\": \"/mannequin/mannequin_salon_side.png\", \"back\": \"/mannequin/mannequin_salon_back.png\"}}",
                 CreatedAt = DateTime.UtcNow
             };
 
