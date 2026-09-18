@@ -31,6 +31,7 @@ export default function Products() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('Pyjamas');
   const [imageUrls, setImageUrls] = useState([]);
+  const [photoItems, setPhotoItems] = useState([]); // [{ url, colorName, hex }]
   const [buyPrice, setBuyPrice] = useState('1200');
   const [targetSellPrice, setTargetSellPrice] = useState('2900');
   const [sizes, setSizes] = useState('S, M, L, XL');
@@ -74,29 +75,22 @@ export default function Products() {
       const sizesList = sizes.split(',').map((s) => s.trim()).filter(Boolean);
       const colorsList = colors.split(',').map((s) => s.trim()).filter(Boolean);
 
-      // 1. Détection automatique de couleur pour chaque image importée
-      const detectedVariantsData = [];
-      for (let idx = 0; idx < imageUrls.length; idx++) {
-        const url = imageUrls[idx];
-        let colorName = colorsList[idx];
-        let hex = '#f4b8c9';
+      // 1. Déclinaisons de couleurs vérifiées et personnalisées par photo
+      const detectedVariantsData = (photoItems && photoItems.length > 0)
+        ? photoItems.map((item, idx) => ({
+            url: item.url,
+            colorName: item.colorName || (colorsList[idx] || `Couleur ${idx + 1}`),
+            hex: item.hex || '#f4b8c9',
+          }))
+        : imageUrls.map((url, idx) => {
+            let colorName = colorsList[idx] || (idx === 0 ? 'Rose Poudré & Carreaux' : (idx === 1 ? 'Marron Caramel & Carreaux' : 'Noir & Carreaux'));
+            return { url, colorName, hex: '#f4b8c9' };
+          });
 
-        try {
-          const res = await detectClothingColors(url);
-          if (res?.detectedColors?.[0]?.name) {
-            colorName = colorName || res.detectedColors[0].name;
-            hex = res.detectedColors[0].hex || hex;
-          }
-        } catch (_) {}
-
-        if (!colorName) {
-          colorName = idx === 0 ? 'Rose Poudré & Carreaux' : (idx === 1 ? 'Marron Caramel & Carreaux' : (idx === 2 ? 'Noir & Carreaux' : (idx === 3 ? 'Vert Sauge & Rayures' : 'Blanc Crème & Carreaux')));
-        }
-
-        detectedVariantsData.push({ url, colorName, hex });
+      for (let idx = 0; idx < detectedVariantsData.length; idx++) {
         setAddProgress((prev) => ({
           ...prev,
-          logs: [...prev.logs, `✓ Image ${idx + 1} : Couleur identifiée -> ${colorName}`],
+          logs: [...prev.logs, `✓ Image ${idx + 1} : Couleur -> ${detectedVariantsData[idx].colorName}`],
         }));
       }
 
@@ -164,6 +158,7 @@ export default function Products() {
       setShowAddModal(false);
       setName('');
       setImageUrls([]);
+      setPhotoItems([]);
       setAddProgress(null);
       loadProducts();
     } catch (err) {
@@ -471,9 +466,16 @@ export default function Products() {
 
             <form onSubmit={handleCreateProduct}>
               <CameraCapture 
-                imageUrls={imageUrls} 
-                onImagesChanged={setImageUrls} 
-                onColorsDetected={(detectedStr) => setColors(detectedStr)} 
+                imageUrls={imageUrls}
+                photoItems={photoItems}
+                onImagesChanged={(urls, items) => {
+                  setImageUrls(urls);
+                  setPhotoItems(items);
+                }} 
+                onColorsDetected={(detectedStr, items) => {
+                  setColors(detectedStr);
+                  if (items) setPhotoItems(items);
+                }} 
               />
 
               <div className="input-group">

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Image as ImageIcon, Loader2, CheckCircle2, X, Plus, Star, Sparkles, Palette } from 'lucide-react';
+import { Camera, Image as ImageIcon, Loader2, CheckCircle2, X, Plus, Star, Sparkles, Palette, Edit3 } from 'lucide-react';
 import { api } from '../services/api';
-import { detectClothingColors } from '../services/colorDetector';
+import { detectClothingColors, PRESET_COLORS } from '../services/colorDetector';
 
 // Helper pour compresser les photos volumineuses (ex: photos smartphone 10Mo -> ~150Ko instantanément)
 const compressImage = (file, maxWidth = 1280, maxHeight = 1280, quality = 0.82) => {
@@ -56,18 +56,31 @@ const compressImage = (file, maxWidth = 1280, maxHeight = 1280, quality = 0.82) 
   });
 };
 
-export default function CameraCapture({ imageUrls = [], onImagesChanged, onColorsDetected }) {
+export default function CameraCapture({ imageUrls = [], photoItems = [], onImagesChanged, onColorsDetected }) {
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
-  const [detectedSwatches, setDetectedSwatches] = useState([]);
 
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
 
-  // Normaliser en tableau d'URLs
-  const images = Array.isArray(imageUrls)
-    ? imageUrls
-    : (imageUrls ? [imageUrls] : []);
+  // Normaliser les éléments : supporte soit photoItems [{ url, colorName, hex }], soit imageUrls ['url1', ...]
+  const items = (photoItems && photoItems.length > 0)
+    ? photoItems
+    : (Array.isArray(imageUrls)
+        ? imageUrls.map((u, i) => (typeof u === 'string' ? { url: u, colorName: `Couleur ${i + 1}`, hex: '#f4b8c9' } : u))
+        : []);
+
+  const notifyChange = (newItems) => {
+    const urls = newItems.map((it) => it.url);
+    if (onImagesChanged) {
+      // Envoie à la fois les URLs et les objets complets avec couleurs
+      onImagesChanged(urls, newItems);
+    }
+    if (onColorsDetected) {
+      const colorsStr = newItems.map((it) => it.colorName).join(', ');
+      onColorsDetected(colorsStr, newItems);
+    }
+  };
 
   const handleFiles = async (fileList) => {
     if (!fileList || fileList.length === 0) return;
@@ -76,74 +89,91 @@ export default function CameraCapture({ imageUrls = [], onImagesChanged, onColor
     setLoading(true);
     setUploadProgress({ current: 0, total: files.length });
 
-    // Agent Détection Automatique des Couleurs sur la première photo
-    try {
-      detectClothingColors(files[0]).then((res) => {
-        if (res && res.colorsString) {
-          setDetectedSwatches(res.detectedColors || []);
-          if (onColorsDetected) {
-            onColorsDetected(res.colorsString, res.detectedColors);
-          }
-        }
-      });
-    } catch (e) {
-      console.warn('Erreur analyse de couleur:', e);
-    }
-
-    const newUrls = [];
+    const newItems = [];
 
     try {
       for (let i = 0; i < files.length; i++) {
         setUploadProgress({ current: i + 1, total: files.length });
         const file = files[i];
-        // Compression automatique côté client pour chargement instantané sans saturation
+
+        // 1. Détection de couleur en direct sur le fichier local AVANT téléversement (Zéro erreur CORS)
+        let detected = { colorName: 'Rose Poudré & Carreaux', hex: '#f4b8c9' };
+        try {
+          const res = await detectClothingColors(file);
+          if (res?.colorName) {
+            detected = { colorName: res.colorName, hex: res.hex };
+          }
+        } catch (e) {
+          console.warn('Erreur détection fichier local:', e);
+        }
+
+        // 2. Compression et téléversement vers Cloudinary
         const optimizedFile = await compressImage(file);
         const uploadedUrl = await api.uploadToCloudinary(optimizedFile);
+
         if (uploadedUrl) {
-          newUrls.push(uploadedUrl);
+          newItems.push({
+            url: uploadedUrl,
+            colorName: detected.colorName,
+            hex: detected.hex,
+          });
         }
       }
 
-      const updated = [...images, ...newUrls];
-      onImagesChanged(updated);
+      const updated = [...items, ...newItems];
+      notifyChange(updated);
     } catch (err) {
       console.error('Erreur téléversement photos multiples:', err);
       alert('Une erreur est survenue lors du téléversement de certaines photos.');
     } finally {
       setLoading(false);
       setUploadProgress({ current: 0, total: 0 });
-      // Reset inputs
       if (cameraInputRef.current) cameraInputRef.current.value = '';
       if (galleryInputRef.current) galleryInputRef.current.value = '';
     }
   };
 
+  const handleColorChange = (index, newColorName) => {
+    const preset = PRESET_COLORS.find((p) => p.name === newColorName);
+    const updated = items.map((it, idx) => {
+      if (idx === index) {
+        return {
+          ...it,
+          colorName: newColorName,
+          hex: preset ? preset.hex : it.hex,
+        };
+      }
+      return it;
+    });
+    notifyChange(updated);
+  };
+
   const handleRemove = (indexToRemove) => {
-    const updated = images.filter((_, idx) => idx !== indexToRemove);
-    onImagesChanged(updated);
+    const updated = items.filter((_, idx) => idx !== indexToRemove);
+    notifyChange(updated);
   };
 
   const handleSetPrimary = (indexToPrimary) => {
     if (indexToPrimary === 0) return;
-    const selected = images[indexToPrimary];
-    const remaining = images.filter((_, idx) => idx !== indexToPrimary);
+    const selected = items[indexToPrimary];
+    const remaining = items.filter((_, idx) => idx !== indexToPrimary);
     const updated = [selected, ...remaining];
-    onImagesChanged(updated);
+    notifyChange(updated);
   };
 
   return (
     <div className="input-group">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
         <label className="input-label" style={{ marginBottom: 0 }}>
-          Photos de la Sel3a ({images.length} photo{images.length > 1 ? 's' : ''})
+          Photos de la Sel3a ({items.length} photo{items.length > 1 ? 's' : ''})
         </label>
         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
           <Sparkles size={12} color="var(--accent-rose)" />
-          Sélection multiple autorisée
+          Détection de couleur automatique
         </span>
       </div>
 
-      {/* Input 1 : Caméra Dorsale (Prend une photo et l'ajoute à la liste) */}
+      {/* Input 1 : Caméra Dorsale */}
       <input
         ref={cameraInputRef}
         type="file"
@@ -153,7 +183,7 @@ export default function CameraCapture({ imageUrls = [], onImagesChanged, onColor
         style={{ display: 'none' }}
       />
 
-      {/* Input 2 : Galerie Locale / PC (MULTIPLE : Sélection de plusieurs photos en même temps) */}
+      {/* Input 2 : Galerie Locale / PC (MULTIPLE) */}
       <input
         ref={galleryInputRef}
         type="file"
@@ -162,60 +192,6 @@ export default function CameraCapture({ imageUrls = [], onImagesChanged, onColor
         onChange={(e) => handleFiles(e.target.files)}
         style={{ display: 'none' }}
       />
-
-      {/* BADGE AGENT DÉTECTION COULEURS */}
-      {detectedSwatches.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'linear-gradient(135deg, rgba(253, 242, 248, 0.95), rgba(255, 241, 242, 0.95))',
-            border: '1px solid var(--accent-rose-border)',
-            borderRadius: '12px',
-            padding: '8px 12px',
-            marginBottom: '10px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-rose-dark)' }}>
-            <Palette size={14} color="var(--accent-rose)" />
-            <span>Couleurs détectées :</span>
-          </div>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {detectedSwatches.map((swatch, i) => (
-              <span
-                key={i}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  background: '#fff',
-                  border: '1px solid rgba(0,0,0,0.08)',
-                  borderRadius: '20px',
-                  padding: '2px 8px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  color: '#1c1917',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-                }}
-              >
-                <span
-                  style={{
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    background: swatch.hex,
-                    display: 'inline-block',
-                    border: '1px solid rgba(0,0,0,0.15)',
-                  }}
-                />
-                {swatch.name}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* CHARGEMENT EN COURS */}
       {loading && (
@@ -235,117 +211,183 @@ export default function CameraCapture({ imageUrls = [], onImagesChanged, onColor
           <Loader2 className="animate-spin" size={24} color="var(--accent-rose)" />
           <div>
             <div style={{ fontWeight: 800, fontSize: '0.86rem' }}>
-              Téléversement en cours ({uploadProgress.current}/{uploadProgress.total})...
+              Analyse IA & Téléversement ({uploadProgress.current}/{uploadProgress.total})...
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
-              Optimisation et hébergement Cloudinary persistant
+              Détection chromatique et optimisation d'image en cours
             </div>
           </div>
         </div>
       )}
 
-      {/* GRILLE DES PHOTOS EXISTANTES */}
-      {images.length > 0 ? (
+      {/* GRILLE DES PHOTOS AVEC CONTRÔLE DES COULEURS PAR PHOTO */}
+      {items.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '10px',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+              gap: '12px',
             }}
           >
-            {images.map((url, idx) => {
+            {items.map((item, idx) => {
               const isPrimary = idx === 0;
               return (
                 <div
                   key={idx}
                   style={{
-                    position: 'relative',
-                    aspectRatio: '1',
-                    borderRadius: '14px',
+                    background: '#ffffff',
+                    borderRadius: '16px',
                     overflow: 'hidden',
-                    border: isPrimary ? '2.5px solid var(--accent-rose)' : '1px solid var(--border-card)',
-                    boxShadow: isPrimary ? '0 4px 14px rgba(219, 39, 119, 0.25)' : '0 2px 6px rgba(0,0,0,0.05)',
-                    background: '#fff',
-                    cursor: 'pointer',
+                    border: isPrimary ? '2px solid var(--accent-rose)' : '1px solid var(--border-card)',
+                    boxShadow: isPrimary ? '0 4px 14px rgba(219, 39, 119, 0.2)' : '0 2px 8px rgba(0,0,0,0.05)',
+                    display: 'flex',
+                    flexDirection: 'column',
                   }}
-                  onClick={() => handleSetPrimary(idx)}
-                  title={isPrimary ? 'Photo principale' : 'Cliquer pour définir comme photo principale'}
                 >
-                  <img
-                    src={url}
-                    alt={`Sel3a ${idx + 1}`}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
+                  {/* Image Container */}
+                  <div
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      aspectRatio: '1',
+                      cursor: 'pointer',
+                      background: '#fdf4ff',
+                    }}
+                    onClick={() => handleSetPrimary(idx)}
+                    title={isPrimary ? 'Photo principale' : 'Cliquer pour définir comme photo principale'}
+                  >
+                    <img
+                      src={item.url}
+                      alt={`Sel3a ${idx + 1}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
 
-                  {/* Badge Principale */}
-                  {isPrimary ? (
-                    <div
+                    {/* Badge Principale */}
+                    {isPrimary ? (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          left: '6px',
+                          background: 'linear-gradient(135deg, #f472b6, #db2777)',
+                          borderRadius: '6px',
+                          padding: '2px 6px',
+                          color: '#fff',
+                          fontSize: '0.62rem',
+                          fontWeight: 800,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                        }}
+                      >
+                        <Star size={10} fill="#fff" />
+                        <span>Principale</span>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          left: '6px',
+                          background: 'rgba(0,0,0,0.5)',
+                          backdropFilter: 'blur(4px)',
+                          borderRadius: '6px',
+                          padding: '2px 5px',
+                          color: '#fff',
+                          fontSize: '0.62rem',
+                          fontWeight: 700,
+                        }}
+                      >
+                        #{idx + 1}
+                      </div>
+                    )}
+
+                    {/* Bouton Supprimer */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemove(idx);
+                      }}
                       style={{
                         position: 'absolute',
                         top: '6px',
-                        left: '6px',
-                        background: 'linear-gradient(135deg, #f472b6, #db2777)',
-                        borderRadius: '6px',
-                        padding: '2px 6px',
-                        color: '#fff',
-                        fontSize: '0.62rem',
-                        fontWeight: 800,
+                        right: '6px',
+                        background: 'rgba(225, 29, 72, 0.9)',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '22px',
+                        height: '22px',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '2px',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                      }}
-                    >
-                      <Star size={10} fill="#fff" />
-                      <span>Principale</span>
-                    </div>
-                  ) : (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '6px',
-                        left: '6px',
-                        background: 'rgba(0,0,0,0.5)',
-                        backdropFilter: 'blur(4px)',
-                        borderRadius: '6px',
-                        padding: '2px 5px',
+                        justifyContent: 'center',
                         color: '#fff',
-                        fontSize: '0.62rem',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                      }}
+                      title="Supprimer cette photo"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+
+                  {/* CONTRÔLE DE LA COULEUR DÉTECTÉE / SÉLECTIONNÉE */}
+                  <div
+                    style={{
+                      padding: '8px',
+                      background: 'rgba(253, 242, 248, 0.65)',
+                      borderTop: '1px solid var(--accent-rose-border)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          background: item.hex || '#f4b8c9',
+                          border: '1.5px solid rgba(0,0,0,0.2)',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                          flexShrink: 0,
+                          display: 'inline-block',
+                        }}
+                      />
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent-rose-dark)' }}>
+                        Couleur détectée :
+                      </span>
+                    </div>
+
+                    <select
+                      value={item.colorName}
+                      onChange={(e) => handleColorChange(idx, e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: '#ffffff',
+                        border: '1.5px solid var(--accent-rose-border)',
+                        borderRadius: '8px',
+                        fontSize: '0.72rem',
                         fontWeight: 700,
+                        color: 'var(--text-main)',
+                        padding: '4px 6px',
+                        outline: 'none',
+                        cursor: 'pointer',
                       }}
                     >
-                      #{idx + 1}
-                    </div>
-                  )}
-
-                  {/* Bouton Supprimer */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemove(idx);
-                    }}
-                    style={{
-                      position: 'absolute',
-                      top: '6px',
-                      right: '6px',
-                      background: 'rgba(225, 29, 72, 0.9)',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '22px',
-                      height: '22px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                    }}
-                    title="Supprimer cette photo"
-                  >
-                    <X size={13} />
-                  </button>
+                      {PRESET_COLORS.map((pc) => (
+                        <option key={pc.name} value={pc.name}>
+                          {pc.name}
+                        </option>
+                      ))}
+                      {!PRESET_COLORS.some((p) => p.name === item.colorName) && (
+                        <option value={item.colorName}>{item.colorName}</option>
+                      )}
+                    </select>
+                  </div>
                 </div>
               );
             })}
@@ -390,10 +432,10 @@ export default function CameraCapture({ imageUrls = [], onImagesChanged, onColor
         >
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '3px' }}>
-              Ajouter des photos du produit
+              Ajouter les photos des déclinaisons
             </div>
             <div style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>
-              Vous pouvez charger plusieurs images à la fois (angles, détails, couleurs)
+              L'IA détectera automatiquement la couleur de chaque photo, et vous pourrez la modifier facilement.
             </div>
           </div>
 

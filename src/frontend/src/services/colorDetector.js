@@ -1,36 +1,29 @@
 /**
  * Agent de Détection Automatique des Couleurs pour Eya - Pyjamas Collection
- * Analyse les pixels d'une image de sel3a via Canvas, extrait les teintes dominantes
- * et les mappe vers des termes de mode en français (Rose poudré, Caramel, Beige, etc.)
+ * Analyse les pixels réels du vêtement via Canvas sans erreur CORS (support File, Blob et remote via fetch),
+ * pondère la saturation pour isoler le tissu des fonds neutres (sols, carrelages, draps)
+ * et mappe vers la palette de référence Eya.
  */
 
-// Palette de référence mode & lingerie / pyjamas
-const FASHION_PALETTE = [
-  { name: 'Rose poudré', hex: '#f4b8c9', r: 244, g: 184, b: 201 },
-  { name: 'Rose pastel', hex: '#fbcfe8', r: 251, g: 207, b: 232 },
-  { name: 'Vieux rose', hex: '#d8839b', r: 216, g: 131, b: 155 },
-  { name: 'Rose framboise', hex: '#be185d', r: 190, g: 24, b: 93 },
-  { name: 'Beige crème', hex: '#f5ebe0', r: 245, g: 235, b: 224 },
-  { name: 'Beige nude', hex: '#d4a373', r: 212, g: 163, b: 115 },
-  { name: 'Écru / Blanc cassé', hex: '#faf7f2', r: 250, g: 247, b: 242 },
-  { name: 'Blanc', hex: '#ffffff', r: 255, g: 255, b: 255 },
-  { name: 'Marron caramel', hex: '#b06d40', r: 176, g: 109, b: 64 },
-  { name: 'Chocolat', hex: '#582f17', r: 88, g: 47, b: 23 },
-  { name: 'Terracotta', hex: '#c85a32', r: 200, g: 90, b: 50 },
-  { name: 'Noir', hex: '#1c1917', r: 28, g: 25, b: 23 },
-  { name: 'Gris perle', hex: '#cbd5e1', r: 203, g: 213, b: 225 },
-  { name: 'Gris anthracite', hex: '#475569', r: 71, g: 85, b: 105 },
-  { name: 'Bleu ciel', hex: '#bae6fd', r: 186, g: 230, b: 253 },
-  { name: 'Bleu marine', hex: '#1e3a8a', r: 30, g: 58, b: 138 },
-  { name: 'Vert sauge', hex: '#a3b18a', r: 163, g: 177, b: 138 },
-  { name: 'Vert d\'eau', hex: '#a7f3d0', r: 167, g: 243, b: 208 },
-  { name: 'Lilas / Lavande', hex: '#e9d5ff', r: 233, g: 213, b: 255 },
-  { name: 'Bordeaux', hex: '#881337', r: 136, g: 19, b: 55 },
-  { name: 'Jaune moutarde', hex: '#ca8a04', r: 202, g: 138, b: 4 },
+export const PRESET_COLORS = [
+  { name: 'Rose Poudré & Carreaux', hex: '#f4b8c9', r: 244, g: 184, b: 201, tag: 'rose' },
+  { name: 'Marron Caramel & Carreaux', hex: '#b06d40', r: 176, g: 109, b: 64, tag: 'caramel' },
+  { name: 'Noir & Carreaux', hex: '#1c1917', r: 28, g: 25, b: 23, tag: 'noir' },
+  { name: 'Vert Sauge & Rayures', hex: '#a3b18a', r: 163, g: 177, b: 138, tag: 'vert' },
+  { name: 'Blanc Crème & Carreaux', hex: '#f5ebe0', r: 245, g: 235, b: 224, tag: 'blanc' },
+  { name: 'Rose Pastel', hex: '#fbcfe8', r: 251, g: 207, b: 232, tag: 'rose' },
+  { name: 'Vieux Rose', hex: '#d8839b', r: 216, g: 131, b: 155, tag: 'rose' },
+  { name: 'Chocolat / Moka', hex: '#582f17', r: 88, g: 47, b: 23, tag: 'caramel' },
+  { name: 'Terracotta', hex: '#c85a32', r: 200, g: 90, b: 50, tag: 'caramel' },
+  { name: 'Gris Anthracite', hex: '#475569', r: 71, g: 85, b: 105, tag: 'noir' },
+  { name: 'Vert Kaki / Olive', hex: '#656d4a', r: 101, g: 109, b: 74, tag: 'vert' },
+  { name: 'Bleu Ciel', hex: '#bae6fd', r: 186, g: 230, b: 253, tag: 'bleu' },
+  { name: 'Bleu Marine', hex: '#1e3a8a', r: 30, g: 58, b: 138, tag: 'bleu' },
+  { name: 'Bordeaux & Lilas', hex: '#881337', r: 136, g: 19, b: 55, tag: 'bordeaux' },
 ];
 
 /**
- * Calcule la distance euclidienne de couleur pondérée
+ * Calcule la distance de couleur pondérée pour la vision humaine (Redmean distance)
  */
 function colorDistance(r1, g1, b1, r2, g2, b2) {
   const rmean = (r1 + r2) / 2;
@@ -41,120 +34,164 @@ function colorDistance(r1, g1, b1, r2, g2, b2) {
 }
 
 /**
- * Trouve le nom de couleur de mode le plus proche
+ * Trouve la couleur de mode la plus proche
  */
-function matchClosestFashionColor(r, g, b) {
+export function matchClosestColor(r, g, b) {
   let minDistance = Infinity;
-  let bestMatch = FASHION_PALETTE[0];
+  let best = PRESET_COLORS[0];
 
-  for (const item of FASHION_PALETTE) {
-    const dist = colorDistance(r, g, b, item.r, item.g, item.b);
+  for (const c of PRESET_COLORS) {
+    const dist = colorDistance(r, g, b, c.r, c.g, c.b);
     if (dist < minDistance) {
       minDistance = dist;
-      bestMatch = item;
+      best = c;
     }
   }
-
-  return bestMatch;
+  return best;
 }
 
 /**
- * Analyse une image (Blob, File ou URL) et extrait les 1 à 3 couleurs principales de la sel3a
- * @param {File|Blob|string} imageSource
- * @returns {Promise<{ colorsString: string, detectedColors: Array<{ name: string, hex: string }> }>}
+ * Convertit n'importe quelle source d'image (File, Blob ou URL) en URL locale sûre (Blob URL)
+ * pour garantir l'absence totale d'erreur de sécurité Canvas (Tainted Canvas / CORS).
  */
-export async function detectClothingColors(imageSource) {
-  return new Promise((resolve) => {
+async function getImageElement(imageSource) {
+  return new Promise((resolve, reject) => {
+    let objectUrl = null;
+
     const img = new Image();
     img.crossOrigin = 'Anonymous';
 
-    let objectUrl = null;
-    if (typeof imageSource === 'string') {
-      img.src = imageSource;
-    } else if (imageSource instanceof Blob || imageSource instanceof File) {
-      objectUrl = URL.createObjectURL(imageSource);
-      img.src = objectUrl;
-    } else {
-      return resolve({ colorsString: 'Rose poudré, Beige crème', detectedColors: [] });
-    }
+    const cleanup = () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
 
     img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // Réduire à une taille idéale pour échantillonnage rapide
-        const size = 120;
-        canvas.width = size;
-        canvas.height = size;
-
-        // On dessine l'image
-        ctx.drawImage(img, 0, 0, size, size);
-
-        // Zone centrale de tissu (évite les bordures)
-        const sx = Math.floor(size * 0.15);
-        const sy = Math.floor(size * 0.15);
-        const sw = Math.floor(size * 0.7);
-        const sh = Math.floor(size * 0.7);
-
-        const imageData = ctx.getImageData(sx, sy, sw, sh);
-        const data = imageData.data;
-
-        const colorFrequency = new Map();
-
-        for (let i = 0; i < data.length; i += 16) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          const a = data[i + 3];
-
-          // Ignorer les pixels transparents ou quasi invisibles
-          if (a < 128) continue;
-
-          // Ignorer reflets blancs aveuglants
-          if (r > 250 && g > 250 && b > 250) continue;
-
-          // Trouver la couleur mode correspondante
-          const match = matchClosestFashionColor(r, g, b);
-          const current = colorFrequency.get(match.name) || { match, count: 0 };
-          current.count += 1;
-          colorFrequency.set(match.name, current);
-        }
-
-        // Trier par fréquence décroissante
-        const sorted = Array.from(colorFrequency.values())
-          .sort((a, b) => b.count - a.count)
-          .map((item) => item.match);
-
-        // Garder jusqu'à 3 couleurs distinctes significatives
-        const unique = [];
-        const seen = new Set();
-        for (const c of sorted) {
-          if (!seen.has(c.name)) {
-            seen.add(c.name);
-            unique.push({ name: c.name, hex: c.hex });
-          }
-          if (unique.length >= 3) break;
-        }
-
-        const detected = unique.length > 0
-          ? unique
-          : [{ name: 'Rose poudré', hex: '#f4b8c9' }, { name: 'Beige crème', hex: '#f5ebe0' }];
-
-        const colorsString = detected.map((c) => c.name).join(', ');
-
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-        resolve({ colorsString, detectedColors: detected });
-      } catch (err) {
-        console.warn('Erreur analyse chromatique canvas:', err);
-        if (objectUrl) URL.revokeObjectURL(objectUrl);
-        resolve({ colorsString: 'Rose poudré, Beige crème', detectedColors: [] });
-      }
+      resolve({ img, cleanup });
     };
 
     img.onerror = () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-      resolve({ colorsString: 'Rose poudré, Beige crème', detectedColors: [] });
+      cleanup();
+      reject(new Error("Impossible de charger l'image pour analyse"));
     };
+
+    if (imageSource instanceof Blob || imageSource instanceof File) {
+      objectUrl = URL.createObjectURL(imageSource);
+      img.src = objectUrl;
+    } else if (typeof imageSource === 'string') {
+      if (imageSource.startsWith('data:') || imageSource.startsWith('blob:')) {
+        img.src = imageSource;
+      } else {
+        // Pour les URLs externes (ex: Cloudinary), on fetch en Blob pour contourner CORS
+        fetch(imageSource)
+          .then((res) => res.blob())
+          .then((blob) => {
+            objectUrl = URL.createObjectURL(blob);
+            img.src = objectUrl;
+          })
+          .catch(() => {
+            // Fallback direct avec crossOrigin
+            img.src = imageSource;
+          });
+      }
+    } else {
+      reject(new Error('Source image invalide'));
+    }
   });
+}
+
+/**
+ * Analyse chromatique avancée d'une image de vêtement
+ * Échantillonne le centre du vêtement (tissu), isole les couleurs saturées
+ * et élimine les fonds clairs (sols, carrelage, couettes).
+ * 
+ * @param {File|Blob|string} imageSource 
+ * @returns {Promise<{ colorName: string, hex: string, allDetected: Array<{ name: string, hex: string }> }>}
+ */
+export async function detectClothingColors(imageSource) {
+  try {
+    const { img, cleanup } = await getImageElement(imageSource);
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const sampleSize = 120;
+    canvas.width = sampleSize;
+    canvas.height = sampleSize;
+
+    ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
+    cleanup();
+
+    // Zone centrale (20% à 80% pour capturer le tissu et éviter les bords/sols)
+    const sx = Math.floor(sampleSize * 0.2);
+    const sy = Math.floor(sampleSize * 0.2);
+    const sw = Math.floor(sampleSize * 0.6);
+    const sh = Math.floor(sampleSize * 0.6);
+
+    const imageData = ctx.getImageData(sx, sy, sw, sh);
+    const data = imageData.data;
+
+    const scoreMap = new Map();
+
+    for (let i = 0; i < data.length; i += 16) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = data[i + 3];
+
+      if (a < 128) continue; // Ignore transparent
+
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const chroma = max - min; // Saturation / vivacité de la couleur
+      const lightness = (max + min) / 2;
+
+      // Ignorer les reflets aveuglants ou fonds carrelage ultra blancs
+      if (lightness > 245 && chroma < 12) continue;
+
+      // Poids du pixel : on donne 3.5x plus d'importance aux pixels avec une vraie couleur (tissu)
+      let weight = 1;
+      if (chroma > 18) {
+        weight = 3.5;
+      } else if (lightness < 35) {
+        // Tissu sombre / noir
+        weight = 2.5;
+      }
+
+      const match = matchClosestColor(r, g, b);
+      const current = scoreMap.get(match.name) || { match, score: 0 };
+      current.score += weight;
+      scoreMap.set(match.name, current);
+    }
+
+    const sorted = Array.from(scoreMap.values()).sort((a, b) => b.score - a.score);
+
+    if (sorted.length > 0) {
+      const best = sorted[0].match;
+      const all = sorted.slice(0, 3).map((item) => ({
+        name: item.match.name,
+        hex: item.match.hex,
+      }));
+      return {
+        colorName: best.name,
+        hex: best.hex,
+        colorsString: all.map((c) => c.name).join(', '),
+        detectedColors: all,
+      };
+    }
+
+    return {
+      colorName: 'Rose Poudré & Carreaux',
+      hex: '#f4b8c9',
+      colorsString: 'Rose Poudré & Carreaux',
+      detectedColors: [{ name: 'Rose Poudré & Carreaux', hex: '#f4b8c9' }],
+    };
+  } catch (err) {
+    console.warn('Erreur détection couleur:', err);
+    return {
+      colorName: 'Rose Poudré & Carreaux',
+      hex: '#f4b8c9',
+      colorsString: 'Rose Poudré & Carreaux',
+      detectedColors: [{ name: 'Rose Poudré & Carreaux', hex: '#f4b8c9' }],
+    };
+  }
 }
