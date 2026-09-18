@@ -36,11 +36,13 @@ export default function FaydaDashboard() {
     <div>
       <header className="app-header">
         <div className="brand-badge">
-          <div className="brand-icon" style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>
-            <TrendingUp size={20} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Eya Logo"
+            className="brand-logo-img"
+          />
           <div>
-            <div className="brand-title">Bilan Global Fayda</div>
+            <div className="brand-title">Eya • Bilan Fayda</div>
             <div className="brand-subtitle">Rentabilité & Trésorerie</div>
           </div>
         </div>

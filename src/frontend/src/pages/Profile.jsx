@@ -26,11 +26,13 @@ export default function Profile({ user, onLogout }) {
     <div>
       <header className="app-header">
         <div className="brand-badge">
-          <div className="brand-icon" style={{ background: 'linear-gradient(135deg, #0284c7, #0d9488)' }}>
-            <ShieldCheck size={20} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Eya Logo"
+            className="brand-logo-img"
+          />
           <div>
-            <div className="brand-title">Espace Associé</div>
+            <div className="brand-title">Eya • Espace Gérant</div>
             <div className="brand-subtitle">Sécurité & Système</div>
           </div>
         </div>

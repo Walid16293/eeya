@@ -123,11 +123,13 @@ export default function Products() {
     <div>
       <header className="app-header">
         <div className="brand-badge">
-          <div className="brand-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)' }}>
-            <Package size={20} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Eya Logo"
+            className="brand-logo-img"
+          />
           <div>
-            <div className="brand-title">Catalogue Sel3a</div>
+            <div className="brand-title">Eya • Collection Sel3a</div>
             <div className="brand-subtitle">Marchandises & Prix IA</div>
           </div>
         </div>

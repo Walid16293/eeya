@@ -171,11 +171,13 @@ export default function Laboratory() {
       {/* En-tête de page */}
       <header className="app-header">
         <div className="brand-badge">
-          <div className="brand-icon">
-            <FlaskConical size={20} />
-          </div>
+          <img
+            src="/logo.png"
+            alt="Eya Logo"
+            className="brand-logo-img"
+          />
           <div>
-            <div className="brand-title">Le Laboratoire</div>
+            <div className="brand-title">Eya • Le Laboratoire</div>
             <div className="brand-subtitle">Cycle 6 Jours • Fayda</div>
           </div>
         </div>
