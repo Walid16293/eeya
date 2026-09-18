@@ -7,6 +7,7 @@ import Products from './pages/Products';
 import FaydaDashboard from './pages/FaydaDashboard';
 import Profile from './pages/Profile';
 
+// Eya • Pyjamas Collection & Le Laboratoire - Production Build
 export default function App() {
   const [user, setUser] = useState(api.getUser());
   const [activeTab, setActiveTab] = useState('laboratoire');
