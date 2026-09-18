@@ -11,8 +11,10 @@ import {
   Clock, 
   Trash2, 
   Sparkles, 
-  ArrowUpRight,
-  Filter
+  ArrowLeft, 
+  ChevronRight, 
+  Eye,
+  Tag
 } from 'lucide-react';
 import { api } from '../services/api';
 import FastInput from '../components/FastInput';
@@ -23,15 +25,17 @@ export default function Sales() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Ventes enregistrées (persistées localement et reliées au test)
+  // Navigation hiérarchique : null = vue globale, sinon le produit sélectionné
+  const [activeProductView, setActiveProductView] = useState(null);
+
+  // Ventes enregistrées (persistées localement et synchronisées)
   const [salesHistory, setSalesHistory] = useState([]);
 
-  // Modal de vente
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  // Modal d'enregistrement final de la vente
+  const [saleModalVariant, setSaleModalVariant] = useState(null); // { product, colorName, colorHex, rawImage, mannequinImage, sizes }
   const [quantity, setQuantity] = useState(1);
-  const [selectedSize, setSelectedSize] = useState('');
-  const [selectedColor, setSelectedColor] = useState('');
-  const [soldPrice, setSoldPrice] = useState('');
+  const [selectedSize, setSelectedSize] = useState('M');
+  const [soldPrice, setSoldPrice] = useState('2900');
   const [deliveryFee, setDeliveryFee] = useState('15');
   const [channel, setChannel] = useState('Instagram DM');
   const [savingSale, setSavingSale] = useState(false);
@@ -39,7 +43,6 @@ export default function Sales() {
 
   useEffect(() => {
     loadData();
-    // Charger l'historique des ventes
     try {
       const saved = localStorage.getItem('le_laboratoire_sales');
       if (saved) setSalesHistory(JSON.parse(saved));
@@ -62,13 +65,11 @@ export default function Sales() {
     }
   };
 
-  const handleOpenSaleModal = (product) => {
-    setSelectedProduct(product);
-    setQuantity(1);
-    setSoldPrice(product.targetSellPrice?.toString() || '2900');
-    setDeliveryFee('15');
-
-    // Extraire tailles et couleurs par défaut
+  /**
+   * Construit la liste des variantes de couleur pour un produit donné
+   * avec pour chaque couleur : sa photo originale et sa vue face mannequin salon
+   */
+  const getProductColorVariants = (product) => {
     let specs = {};
     try {
       specs = typeof product.specifications === 'string' 
@@ -76,30 +77,86 @@ export default function Sales() {
         : (product.specifications || {});
     } catch (_) {}
 
-    setSelectedSize(specs.tailles?.[0] || 'M');
-    setSelectedColor(specs.couleurs?.[0] || 'Rose poudré');
+    const imagesList = specs.images || (product.imageUrl ? [product.imageUrl] : []);
+    const colorsList = specs.couleurs || ['Rose poudré', 'Marron caramel'];
+    const sizesList = specs.tailles || ['S', 'M', 'L', 'XL'];
+
+    // Dictionnaire d'association des couleurs avec leurs images (originale & mannequin face salon)
+    const variants = [
+      {
+        id: 'color-rose',
+        name: 'Rose Poudré & Carreaux',
+        hex: '#f4b8c9',
+        rawImage: imagesList[0] || '/images/photo_2026-09-18_17-38-32.jpg',
+        mannequinImage: '/mannequin/mannequin_salon_front.png',
+        sizes: sizesList,
+        stockEstimate: 6,
+      },
+      {
+        id: 'color-caramel',
+        name: 'Marron Caramel & Carreaux',
+        hex: '#b06d40',
+        rawImage: imagesList[1] || imagesList[0] || '/images/photo_2026-09-18_17-38-35.jpg',
+        mannequinImage: '/mannequin/mannequin_caramel_front.png',
+        sizes: sizesList,
+        stockEstimate: 5,
+      },
+    ];
+
+    // Si d'autres couleurs sont déclarées par l'utilisateur
+    if (colorsList.length > 2) {
+      for (let i = 2; i < colorsList.length; i++) {
+        variants.push({
+          id: `color-${i}`,
+          name: colorsList[i],
+          hex: '#cbd5e1',
+          rawImage: imagesList[i] || imagesList[0] || product.imageUrl,
+          mannequinImage: '/mannequin/mannequin_salon_front.png',
+          sizes: sizesList,
+          stockEstimate: 4,
+        });
+      }
+    }
+
+    return variants;
+  };
+
+  const handleOpenSaleForm = (product, variant) => {
+    setSaleModalVariant({
+      product,
+      colorName: variant.name,
+      colorHex: variant.hex,
+      rawImage: variant.rawImage,
+      mannequinImage: variant.mannequinImage,
+      sizes: variant.sizes,
+    });
+    setQuantity(1);
+    setSelectedSize(variant.sizes[0] || 'M');
+    setSoldPrice(product.targetSellPrice?.toString() || '2900');
+    setDeliveryFee('15');
   };
 
   const handleConfirmSale = async (e) => {
     e.preventDefault();
-    if (!selectedProduct) return;
+    if (!saleModalVariant) return;
 
     setSavingSale(true);
-    const unitPrice = parseFloat(soldPrice) || selectedProduct.targetSellPrice || 0;
+    const unitPrice = parseFloat(soldPrice) || saleModalVariant.product.targetSellPrice || 0;
     const fee = parseFloat(deliveryFee) || 0;
     const totalRevenue = unitPrice * quantity;
-    const totalCost = (selectedProduct.buyPrice * quantity) + (fee * quantity);
+    const totalCost = (saleModalVariant.product.buyPrice * quantity) + (fee * quantity);
     const netProfit = totalRevenue - totalCost;
 
     const newSale = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
-      productId: selectedProduct.id,
-      productName: selectedProduct.name,
-      productImage: selectedProduct.imageUrl,
+      productId: saleModalVariant.product.id,
+      productName: saleModalVariant.product.name,
+      colorName: saleModalVariant.colorName,
+      colorHex: saleModalVariant.colorHex,
+      image: saleModalVariant.mannequinImage || saleModalVariant.rawImage,
       quantity,
       size: selectedSize,
-      color: selectedColor,
       unitPrice,
       totalRevenue,
       netProfit,
@@ -113,8 +170,8 @@ export default function Sales() {
       localStorage.setItem('le_laboratoire_sales', JSON.stringify(updatedHistory));
     } catch (_) {}
 
-    // 2. Si un test actif existe pour ce produit, synchroniser avec le bilan du jour !
-    if (activeTest && activeTest.productId === selectedProduct.id) {
+    // 2. Si un test actif existe pour ce produit, synchroniser avec le bilan du jour
+    if (activeTest && activeTest.productId === saleModalVariant.product.id) {
       try {
         const currentDay = activeTest.currentDay || 1;
         const currentOrders = activeTest.totalConfirmedOrders || 0;
@@ -124,7 +181,7 @@ export default function Sales() {
           adsSpent: activeTest.totalAdsSpent || 0,
           clicks: 0,
           impressions: 0,
-          notes: `Vente enregistrée : ${quantity}x ${selectedProduct.name} (${selectedSize}, ${selectedColor}) via ${channel}`,
+          notes: `Vente validée : ${quantity}x ${saleModalVariant.product.name} (${saleModalVariant.colorName} - Taille ${selectedSize}) via ${channel}`,
         });
       } catch (err) {
         console.warn('Sync avec test actif:', err);
@@ -132,45 +189,24 @@ export default function Sales() {
     }
 
     setSavingSale(false);
-    setSelectedProduct(null);
-    setSuccessToast(`Vente enregistrée ! +${totalRevenue.toLocaleString()} DA (Fayda : +${netProfit.toLocaleString()} DA)`);
+    setSaleModalVariant(null);
+    setSuccessToast(`Vente validée ! +${totalRevenue.toLocaleString()} DA en caisse (Fayda : +${netProfit.toLocaleString()} DA)`);
     setTimeout(() => setSuccessToast(null), 4000);
   };
 
-  const handleDeleteSale = (saleId) => {
-    const filtered = salesHistory.filter((s) => s.id !== saleId);
-    setSalesHistory(filtered);
-    try {
-      localStorage.setItem('le_laboratoire_sales', JSON.stringify(filtered));
-    } catch (_) {}
-  };
-
-  // Filtrer les produits
+  // Filtrer les produits pour la vue globale
   const filteredProducts = products.filter((p) => {
     const q = searchQuery.toLowerCase();
     return p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q);
   });
 
-  // Calculs statistiques
+  // Statistiques
   const totalRevenueAll = salesHistory.reduce((sum, s) => sum + (s.totalRevenue || 0), 0);
   const totalProfitAll = salesHistory.reduce((sum, s) => sum + (s.netProfit || 0), 0);
   const totalItemsSold = salesHistory.reduce((sum, s) => sum + (s.quantity || 0), 0);
 
   return (
     <div className="page-content" style={{ paddingBottom: '90px' }}>
-      {/* Entête */}
-      <header className="page-header">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span className="gold-badge">Point de Vente • Sel3a</span>
-            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Sorties de Stock</span>
-          </div>
-          <h1 className="page-title" style={{ marginTop: '4px' }}>
-            Enregistrer les Ventes
-          </h1>
-        </div>
-      </header>
-
       {/* Toast de confirmation */}
       {successToast && (
         <div
@@ -186,7 +222,6 @@ export default function Sales() {
             fontWeight: 700,
             fontSize: '0.86rem',
             boxShadow: '0 8px 20px rgba(16, 185, 129, 0.3)',
-            animation: 'fadeIn 0.2s ease',
           }}
         >
           <CheckCircle2 size={20} />
@@ -194,147 +229,366 @@ export default function Sales() {
         </div>
       )}
 
-      {/* Cartes Métriques Rapides */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '10px',
-          marginBottom: '16px',
-        }}
-      >
-        <div className="glass-card" style={{ padding: '12px 10px', textAlign: 'center' }}>
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>Total Vendu</span>
-          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>
-            {totalItemsSold} <span style={{ fontSize: '0.72rem' }}>pcs</span>
+      {/* VUE 1 : CATALOGUE GLOBAL DES MARCHANDISES */}
+      {!activeProductView ? (
+        <>
+          <header className="page-header">
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="gold-badge">Point de Vente • Sel3a</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Vue Globale du Stock</span>
+              </div>
+              <h1 className="page-title" style={{ marginTop: '4px' }}>
+                Enregistrer les Ventes
+              </h1>
+            </div>
+          </header>
+
+          {/* Métriques Rapides */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '10px',
+              marginBottom: '16px',
+            }}
+          >
+            <div className="glass-card" style={{ padding: '12px 8px', textAlign: 'center' }}>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>Total Vendu</span>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>
+                {totalItemsSold} <span style={{ fontSize: '0.7rem' }}>pcs</span>
+              </div>
+            </div>
+
+            <div className="glass-card" style={{ padding: '12px 8px', textAlign: 'center' }}>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>Chiffre d'Affaires</span>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
+                {totalRevenueAll.toLocaleString()} <span style={{ fontSize: '0.68rem' }}>DA</span>
+              </div>
+            </div>
+
+            <div className="glass-card" style={{ padding: '12px 8px', textAlign: 'center', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+              <span style={{ fontSize: '0.68rem', color: '#34d399', fontWeight: 700 }}>Fayda Nette</span>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#34d399', marginTop: '2px' }}>
+                +{totalProfitAll.toLocaleString()} <span style={{ fontSize: '0.68rem' }}>DA</span>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="glass-card" style={{ padding: '12px 10px', textAlign: 'center' }}>
-          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>Chiffre d'Affaires</span>
-          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#38bdf8', marginTop: '2px' }}>
-            {totalRevenueAll.toLocaleString()} <span style={{ fontSize: '0.68rem' }}>DA</span>
+          {/* Barre de Recherche */}
+          <div className="search-bar" style={{ marginBottom: '16px' }}>
+            <Search size={18} color="var(--accent-rose)" />
+            <input
+              type="text"
+              placeholder="Rechercher une sel3a par nom ou catégorie..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
-        </div>
 
-        <div className="glass-card" style={{ padding: '12px 10px', textAlign: 'center', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
-          <span style={{ fontSize: '0.68rem', color: '#34d399', fontWeight: 700 }}>Fayda Nette</span>
-          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#34d399', marginTop: '2px' }}>
-            +{totalProfitAll.toLocaleString()} <span style={{ fontSize: '0.68rem' }}>DA</span>
+          {/* Liste Globale des Marchandises */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                Sélectionnez une Marchandise ({filteredProducts.length})
+              </h2>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Cliquez pour voir les couleurs
+              </span>
+            </div>
+
+            {filteredProducts.length === 0 ? (
+              <div className="glass-card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-dim)' }}>
+                <Package size={36} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
+                <p style={{ fontSize: '0.9rem' }}>Aucune marchandise trouvée.</p>
+              </div>
+            ) : (
+              filteredProducts.map((p) => {
+                const variants = getProductColorVariants(p);
+
+                return (
+                  <div
+                    key={p.id}
+                    className="glass-card"
+                    style={{
+                      padding: '16px',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                    }}
+                    onClick={() => setActiveProductView(p)}
+                  >
+                    <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+                      {/* Photo Couverture */}
+                      <div
+                        style={{
+                          width: '74px',
+                          height: '74px',
+                          borderRadius: '14px',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                          border: '1.5px solid var(--accent-rose-border)',
+                          boxShadow: '0 4px 10px rgba(219, 39, 119, 0.12)',
+                        }}
+                      >
+                        <img
+                          src={p.imageUrl || '/mannequin/mannequin_salon_front.png'}
+                          alt={p.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+
+                      {/* Infos Produit */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.66rem', color: 'var(--accent-rose-dark)', fontWeight: 800, textTransform: 'uppercase' }}>
+                            {p.category}
+                          </span>
+                          {p.hasActiveTest && (
+                            <span className="tag tag-active" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
+                              Test Actif
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 style={{ fontSize: '0.98rem', fontWeight: 800, marginTop: '2px', color: 'var(--text-main)' }}>
+                          {p.name}
+                        </h3>
+
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline', marginTop: '4px' }}>
+                          <span style={{ fontSize: '1rem', fontWeight: 800, color: '#10b981', fontFamily: 'JetBrains Mono' }}>
+                            {p.targetSellPrice.toLocaleString()} DA
+                          </span>
+                          <span style={{ fontSize: '0.74rem', color: 'var(--text-dim)' }}>
+                            (Achat : {p.buyPrice.toLocaleString()} DA)
+                          </span>
+                        </div>
+
+                        {/* Pastilles des couleurs disponibles */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                            {variants.length} couleur{variants.length > 1 ? 's' : ''} :
+                          </span>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            {variants.map((v) => (
+                              <span
+                                key={v.id}
+                                title={v.name}
+                                style={{
+                                  width: '12px',
+                                  height: '12px',
+                                  borderRadius: '50%',
+                                  background: v.hex,
+                                  border: '1px solid rgba(0,0,0,0.2)',
+                                  display: 'inline-block',
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Flèche d'entrée */}
+                      <div
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          background: 'linear-gradient(135deg, rgba(244, 114, 182, 0.2), rgba(219, 39, 119, 0.2))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--accent-rose-dark)',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <ChevronRight size={18} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        /* VUE 2 : DÉCLINAISONS DE COULEUR SÉPARÉES POUR LE PRODUIT SÉLECTIONNÉ */
+        <div>
+          {/* Bouton Retour */}
+          <button
+            type="button"
+            onClick={() => setActiveProductView(null)}
+            className="btn-secondary"
+            style={{
+              padding: '8px 14px',
+              fontSize: '0.78rem',
+              marginBottom: '16px',
+              gap: '6px',
+              width: 'fit-content',
+            }}
+          >
+            <ArrowLeft size={16} />
+            <span>← Retour aux marchandises</span>
+          </button>
 
-      {/* Barre de Recherche de Marchandise */}
-      <div className="search-bar" style={{ marginBottom: '16px' }}>
-        <Search size={18} color="var(--text-dim)" />
-        <input
-          type="text"
-          placeholder="Rechercher une sel3a par nom ou catégorie..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-
-      {/* Grille des Produits Disponibles à la Vente */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
-            Sélectionnez la Sel3a Vendue ({filteredProducts.length})
-          </h2>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            Cliquez pour enregistrer
-          </span>
-        </div>
-
-        {filteredProducts.length === 0 ? (
-          <div className="glass-card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-dim)' }}>
-            <Package size={36} style={{ margin: '0 auto 10px', opacity: 0.5 }} />
-            <p style={{ fontSize: '0.9rem' }}>Aucune marchandise trouvée.</p>
+          {/* Entête du Produit Sélectionné */}
+          <div className="glass-card" style={{ padding: '16px', marginBottom: '18px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="gold-badge">{activeProductView.category}</span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Sélection par Couleur</span>
+            </div>
+            <h1 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)' }}>
+              {activeProductView.name}
+            </h1>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '6px', alignItems: 'baseline' }}>
+              <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#10b981', fontFamily: 'JetBrains Mono' }}>
+                {activeProductView.targetSellPrice.toLocaleString()} DA
+              </span>
+              <span style={{ fontSize: '0.76rem', color: 'var(--text-dim)' }}>
+                (Marge brute : +{(activeProductView.targetSellPrice - activeProductView.buyPrice).toLocaleString()} DA / pièce)
+              </span>
+            </div>
           </div>
-        ) : (
-          filteredProducts.map((p) => {
-            let specs = {};
-            try {
-              specs = typeof p.specifications === 'string' 
-                ? JSON.parse(p.specifications || '{}') 
-                : (p.specifications || {});
-            } catch (_) {}
 
-            return (
+          <div style={{ marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '0.98rem', fontWeight: 800, color: 'var(--text-main)' }}>
+              Couleurs Disponibles pour cette Sel3a
+            </h2>
+            <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+              Pour chaque couleur, visualisez la <strong>photo originale</strong> et le <strong>rendu mannequin salon</strong>, puis sélectionnez celle qui a été vendue :
+            </p>
+          </div>
+
+          {/* LISTE DES COULEURS SÉPARÉES AVEC VISUELS COMPARATIFS */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {getProductColorVariants(activeProductView).map((variant) => (
               <div
-                key={p.id}
+                key={variant.id}
                 className="glass-card"
                 style={{
-                  padding: '14px',
-                  display: 'flex',
-                  gap: '12px',
-                  alignItems: 'center',
-                  transition: 'transform 0.15s ease',
+                  padding: '16px',
+                  borderRadius: '20px',
+                  border: '1.5px solid var(--accent-rose-border)',
                 }}
               >
-                {/* Photo Produit */}
-                <div style={{ width: '68px', height: '68px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border-card)' }}>
-                  {p.imageUrl ? (
-                    <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <div style={{ width: '100%', height: '100%', background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Package size={22} color="var(--text-dim)" />
+                {/* Entête Couleur */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        background: variant.hex,
+                        border: '1.5px solid #fff',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                        display: 'inline-block',
+                      }}
+                    />
+                    <h3 style={{ fontSize: '1.02rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                      Couleur : {variant.name}
+                    </h3>
+                  </div>
+
+                  <span style={{ fontSize: '0.72rem', color: 'var(--accent-rose-dark)', fontWeight: 700 }}>
+                    Stock : ~{variant.stockEstimate} pcs
+                  </span>
+                </div>
+
+                {/* LES DEUX PHOTOS COMPARATIVES BIEN SÉPARÉES */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '14px' }}>
+                  {/* Photo 1 : Originale (À plat) */}
+                  <div
+                    style={{
+                      background: '#fff',
+                      borderRadius: '14px',
+                      overflow: 'hidden',
+                      border: '1px solid var(--border-card)',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+                    }}
+                  >
+                    <div style={{ padding: '6px 8px', background: 'rgba(0,0,0,0.03)', fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                      📸 Photo Originale (À plat)
                     </div>
-                  )}
+                    <div style={{ width: '100%', aspectRatio: '1', overflow: 'hidden' }}>
+                      <img
+                        src={variant.rawImage}
+                        alt={`${variant.name} originale`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Photo 2 : Face Mannequin Salon Réel */}
+                  <div
+                    style={{
+                      background: '#12100e',
+                      borderRadius: '14px',
+                      overflow: 'hidden',
+                      border: '1.5px solid var(--accent-rose-border)',
+                      boxShadow: '0 4px 10px rgba(219, 39, 119, 0.15)',
+                    }}
+                  >
+                    <div style={{ padding: '6px 8px', background: 'rgba(219, 39, 119, 0.15)', fontSize: '0.66rem', fontWeight: 800, color: 'var(--accent-rose)' }}>
+                      👗 Face Mannequin (Salon Réel)
+                    </div>
+                    <div style={{ width: '100%', aspectRatio: '1', overflow: 'hidden' }}>
+                      <img
+                        src={variant.mannequinImage}
+                        alt={`${variant.name} mannequin`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                {/* Infos Produit */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '0.66rem', color: 'var(--accent-rose)', fontWeight: 700, textTransform: 'uppercase' }}>
-                      {p.category}
-                    </span>
-                    {p.hasActiveTest && (
-                      <span className="tag tag-active" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
-                        Test Actif
+                {/* Tailles Disponibles */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    Tailles :
+                  </span>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    {variant.sizes.map((s, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.8)',
+                          border: '1px solid var(--border-card)',
+                          borderRadius: '6px',
+                          padding: '2px 7px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          color: 'var(--text-main)',
+                        }}
+                      >
+                        {s}
                       </span>
-                    )}
-                  </div>
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginTop: '2px', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {p.name}
-                  </h3>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline', marginTop: '3px' }}>
-                    <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#34d399', fontFamily: 'JetBrains Mono' }}>
-                      {p.targetSellPrice.toLocaleString()} DA
-                    </span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
-                      (Achat : {p.buyPrice.toLocaleString()} DA)
-                    </span>
+                    ))}
                   </div>
                 </div>
 
-                {/* Bouton Vendre */}
+                {/* BOUTON D'ACTION : VENDRE CETTE COULEUR */}
                 <button
                   type="button"
-                  onClick={() => handleOpenSaleModal(p)}
+                  onClick={() => handleOpenSaleForm(activeProductView, variant)}
                   className="btn-primary"
                   style={{
-                    padding: '8px 14px',
-                    fontSize: '0.78rem',
-                    flexShrink: 0,
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
+                    width: '100%',
+                    padding: '12px',
+                    fontSize: '0.86rem',
+                    borderRadius: '14px',
                   }}
                 >
-                  <ShoppingBag size={14} />
-                  <span>Vendre</span>
+                  <ShoppingBag size={16} />
+                  <span>Vendre cette couleur ({variant.name})</span>
                 </button>
               </div>
-            );
-          })
-        )}
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Historique des Ventes Enregistrées */}
-      <div style={{ marginTop: '20px' }}>
+      <div style={{ marginTop: '28px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
           <h2 style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-main)' }}>
             Historique des Ventes ({salesHistory.length})
@@ -356,7 +610,7 @@ export default function Sales() {
 
         {salesHistory.length === 0 ? (
           <div className="glass-card" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
-            Aucune vente enregistrée pour le moment. Cliquez sur "Vendre" sur n'importe quel produit pour commencer !
+            Aucune vente enregistrée pour le moment. Cliquez sur un produit ci-dessus pour enregistrer vos ventes par couleur !
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -372,23 +626,25 @@ export default function Sales() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--text-main)' }}>
                     {sale.quantity}x {sale.productName}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', gap: '6px' }}>
-                    <span>Taille : <strong>{sale.size || 'Unique'}</strong></span>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--accent-rose-dark)', fontWeight: 700 }}>
+                      {sale.colorName}
+                    </span>
                     <span>•</span>
-                    <span>Couleur : <strong>{sale.color || 'Standard'}</strong></span>
+                    <span>Taille : <strong>{sale.size || 'M'}</strong></span>
                     <span>•</span>
                     <span>Canal : {sale.channel}</span>
                   </div>
                 </div>
 
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#34d399', fontFamily: 'JetBrains Mono' }}>
+                  <div style={{ fontSize: '0.94rem', fontWeight: 800, color: '#10b981', fontFamily: 'JetBrains Mono' }}>
                     +{sale.totalRevenue.toLocaleString()} DA
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--accent-rose)', fontWeight: 700 }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--accent-rose-dark)', fontWeight: 700 }}>
                     Fayda : +{sale.netProfit.toLocaleString()} DA
                   </div>
                 </div>
@@ -398,8 +654,8 @@ export default function Sales() {
         )}
       </div>
 
-      {/* MODAL D'ENREGISTREMENT D'UNE VENTE */}
-      {selectedProduct && (
+      {/* MODAL FINAL D'ENREGISTREMENT DE LA VENTE */}
+      {saleModalVariant && (
         <div
           style={{
             position: 'fixed',
@@ -410,7 +666,7 @@ export default function Sales() {
             display: 'flex',
             alignItems: 'flex-end',
           }}
-          onClick={() => setSelectedProduct(null)}
+          onClick={() => setSaleModalVariant(null)}
         >
           <div
             className="glass-card"
@@ -425,20 +681,35 @@ export default function Sales() {
               padding: '20px',
               paddingBottom: '32px',
               boxShadow: '0 -10px 40px rgba(0,0,0,0.6)',
+              background: '#fff',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Entête Modal */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <div>
-                <span className="gold-badge">Sortie de Marchandise</span>
-                <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '4px' }}>
-                  {selectedProduct.name}
+                <span className="gold-badge">Confirmation Sortie de Stock</span>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '4px', color: 'var(--text-main)' }}>
+                  {saleModalVariant.product.name}
                 </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                  <span
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: saleModalVariant.colorHex,
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span style={{ fontSize: '0.78rem', color: 'var(--accent-rose-dark)', fontWeight: 700 }}>
+                    Couleur sélectionnée : {saleModalVariant.colorName}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedProduct(null)}
+                onClick={() => setSaleModalVariant(null)}
                 style={{ background: 'none', border: 'none', color: 'var(--text-dim)', fontSize: '0.9rem', cursor: 'pointer' }}
               >
                 Fermer
@@ -477,33 +748,33 @@ export default function Sales() {
                 </div>
               </div>
 
-              {/* Taille Vendue */}
+              {/* Sélection Taille */}
               <div className="input-group">
                 <label className="input-label">Taille Vendue</label>
-                <input
-                  type="text"
-                  value={selectedSize}
-                  onChange={(e) => setSelectedSize(e.target.value)}
-                  placeholder="Ex: S, M, L, XL"
-                  className="fast-input"
-                  style={{ fontSize: '0.9rem', padding: '10px' }}
-                />
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {saleModalVariant.sizes.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setSelectedSize(s)}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: '10px',
+                        border: selectedSize === s ? '2px solid var(--accent-rose)' : '1px solid var(--border-card)',
+                        background: selectedSize === s ? 'linear-gradient(135deg, #fbcfe8, #f472b6)' : '#fff',
+                        color: selectedSize === s ? '#831843' : 'var(--text-main)',
+                        fontWeight: 800,
+                        fontSize: '0.84rem',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {/* Couleur Vendue */}
-              <div className="input-group">
-                <label className="input-label">Couleur Vendue</label>
-                <input
-                  type="text"
-                  value={selectedColor}
-                  onChange={(e) => setSelectedColor(e.target.value)}
-                  placeholder="Ex: Rose poudré, Beige"
-                  className="fast-input"
-                  style={{ fontSize: '0.9rem', padding: '10px' }}
-                />
-              </div>
-
-              {/* Prix de Vente Unitaire */}
+              {/* Prix de Vente & Frais Bureau */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <FastInput
                   label="Prix Vente Unitaire"
@@ -536,11 +807,11 @@ export default function Sales() {
                 </select>
               </div>
 
-              {/* Bilan Financier de cette Vente */}
+              {/* Bilan Financier */}
               <div
                 style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid var(--border-card)',
+                  background: 'linear-gradient(135deg, #fdf4ff, #fff1f2)',
+                  border: '1.5px solid var(--accent-rose-border)',
                   borderRadius: '14px',
                   padding: '12px 14px',
                   marginBottom: '16px',
@@ -548,14 +819,14 @@ export default function Sales() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.84rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Montant Total Encaissé :</span>
-                  <strong style={{ color: '#38bdf8', fontFamily: 'JetBrains Mono' }}>
+                  <strong style={{ color: '#0284c7', fontFamily: 'JetBrains Mono' }}>
                     {((parseFloat(soldPrice) || 0) * quantity).toLocaleString()} DA
                   </strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Fayda Nette Immédiate :</span>
-                  <strong style={{ color: '#34d399', fontFamily: 'JetBrains Mono' }}>
-                    +{(((parseFloat(soldPrice) || 0) - selectedProduct.buyPrice - (parseFloat(deliveryFee) || 0)) * quantity).toLocaleString()} DA
+                  <strong style={{ color: '#059669', fontFamily: 'JetBrains Mono' }}>
+                    +{(((parseFloat(soldPrice) || 0) - saleModalVariant.product.buyPrice - (parseFloat(deliveryFee) || 0)) * quantity).toLocaleString()} DA
                   </strong>
                 </div>
               </div>
@@ -567,11 +838,11 @@ export default function Sales() {
                 style={{ width: '100%', padding: '14px' }}
               >
                 {savingSale ? (
-                  <span>Enregistrement...</span>
+                  <span>Validation...</span>
                 ) : (
                   <>
                     <Check size={18} />
-                    <span>Confirmer la Vente ({((parseFloat(soldPrice) || 0) * quantity).toLocaleString()} DA)</span>
+                    <span>Valider la Vente ({((parseFloat(soldPrice) || 0) * quantity).toLocaleString()} DA)</span>
                   </>
                 )}
               </button>
