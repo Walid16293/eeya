@@ -32,3 +32,11 @@ yarn-error.log*
 Thumbs.db
 [Dd]esktop.ini
 .DS_Store
+
+# Python & Telegram Sessions (Sécurité)
+__pycache__/
+*.pyc
+*.session
+*.session-journal
+session_string.txt
+.env
