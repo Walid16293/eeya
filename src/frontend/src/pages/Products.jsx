@@ -16,12 +16,15 @@ import {
 import { api } from '../services/api';
 import CameraCapture from '../components/CameraCapture';
 import FastInput from '../components/FastInput';
+import MannequinViewer from '../components/MannequinViewer';
+import { detectClothingColors } from '../services/colorDetector';
 
 export default function Products() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [previewGallery, setPreviewGallery] = useState(null); // { title: string, images: string[], currentIndex: number }
+  const [activeMannequinProduct, setActiveMannequinProduct] = useState(null);
   
   // Nouveau produit
   const [name, setName] = useState('');
@@ -302,10 +305,31 @@ export default function Products() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap' }}>
                   <button
                     className="btn-secondary"
-                    style={{ flex: 1, padding: '8px 12px', fontSize: '0.8rem', background: 'rgba(139, 92, 246, 0.12)', borderColor: 'rgba(139, 92, 246, 0.3)' }}
+                    style={{
+                      flex: '1 1 140px',
+                      padding: '8px 10px',
+                      fontSize: '0.78rem',
+                      background: 'linear-gradient(135deg, rgba(244, 114, 182, 0.15), rgba(219, 39, 119, 0.15))',
+                      borderColor: 'var(--accent-rose-border)',
+                      color: 'var(--accent-rose-dark)',
+                      fontWeight: 700,
+                    }}
+                    onClick={() => setActiveMannequinProduct(p)}
+                  >
+                    <span>👗 Studio Mannequin (3 Angles)</span>
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    style={{
+                      flex: '1 1 140px',
+                      padding: '8px 10px',
+                      fontSize: '0.78rem',
+                      background: 'rgba(139, 92, 246, 0.12)',
+                      borderColor: 'rgba(139, 92, 246, 0.3)',
+                    }}
                     onClick={() => handleRunAiResearch(p)}
                   >
                     <Sparkles size={15} color="#a78bfa" />
@@ -361,7 +385,11 @@ export default function Products() {
             </div>
 
             <form onSubmit={handleCreateProduct}>
-              <CameraCapture imageUrls={imageUrls} onImagesChanged={setImageUrls} />
+              <CameraCapture 
+                imageUrls={imageUrls} 
+                onImagesChanged={setImageUrls} 
+                onColorsDetected={(detectedStr) => setColors(detectedStr)} 
+              />
 
               <div className="input-group">
                 <label className="input-label">Nom de la Sel3a</label>
@@ -370,7 +398,7 @@ export default function Products() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  placeholder="Ex: Montre Connectée Ultra Pro"
+                  placeholder="Ex: Ensemble Pyjama Côtelé Rose"
                   className="fast-input"
                   style={{ fontSize: '1rem', padding: '12px' }}
                 />
@@ -382,7 +410,7 @@ export default function Products() {
                   type="text"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  placeholder="Ex: Électronique, Vêtements, Maison..."
+                  placeholder="Ex: Pyjamas, Vêtements, Lingerie..."
                   className="fast-input"
                   style={{ fontSize: '0.95rem', padding: '12px' }}
                 />
@@ -409,19 +437,44 @@ export default function Products() {
                   type="text"
                   value={sizes}
                   onChange={(e) => setSizes(e.target.value)}
-                  placeholder="M, L, XL"
+                  placeholder="S, M, L, XL"
                   className="fast-input"
                   style={{ fontSize: '0.9rem', padding: '10px' }}
                 />
               </div>
 
               <div className="input-group">
-                <label className="input-label">Couleurs disponibles</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <label className="input-label" style={{ marginBottom: 0 }}>Couleurs de la Sel3a</label>
+                  {imageUrls.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const res = await detectClothingColors(imageUrls[0]);
+                        if (res?.colorsString) setColors(res.colorsString);
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--accent-rose)',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                      }}
+                    >
+                      <Sparkles size={12} />
+                      Détecter par IA
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={colors}
                   onChange={(e) => setColors(e.target.value)}
-                  placeholder="Noir, Argent, Bleu"
+                  placeholder="Ex: Rose poudré, Beige crème"
                   className="fast-input"
                   style={{ fontSize: '0.9rem', padding: '10px' }}
                 />
@@ -721,6 +774,14 @@ export default function Products() {
             )}
           </div>
         </div>
+      )}
+
+      {/* STUDIO MANNEQUIN 3 ANGLES (FACE, PROFIL, DOS) */}
+      {activeMannequinProduct && (
+        <MannequinViewer
+          product={activeMannequinProduct}
+          onClose={() => setActiveMannequinProduct(null)}
+        />
       )}
     </div>
   );

@@ -51,5 +51,23 @@ public static class DbSeeder
             await context.Users.AddRangeAsync(admin1, admin2);
             await context.SaveChangesAsync();
         }
+
+        if (!await context.Products.AnyAsync())
+        {
+            var initialProduct = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = "Ensemble Pyjama Côtelé & Pantalon Carreaux",
+                Category = "Pyjamas",
+                ImageUrl = "/mannequin/pyjama_rose_front.png",
+                BuyPrice = 1200m,
+                TargetSellPrice = 2900m,
+                Specifications = "{\"tailles\": [\"S\", \"M\", \"L\", \"XL\"], \"couleurs\": [\"Rose poudré\", \"Beige crème\"], \"images\": [\"/mannequin/pyjama_rose_front.png\", \"/mannequin/pyjama_rose_side.png\", \"/mannequin/pyjama_rose_back.png\"], \"mannequinViews\": {\"front\": \"/mannequin/pyjama_rose_front.png\", \"side\": \"/mannequin/pyjama_rose_side.png\", \"back\": \"/mannequin/pyjama_rose_back.png\"}}",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await context.Products.AddAsync(initialProduct);
+            await context.SaveChangesAsync();
+        }
     }
 }

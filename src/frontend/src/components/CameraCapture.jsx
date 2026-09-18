@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Camera, Image as ImageIcon, Loader2, CheckCircle2, X, Plus, Star, Sparkles } from 'lucide-react';
+import { Camera, Image as ImageIcon, Loader2, CheckCircle2, X, Plus, Star, Sparkles, Palette } from 'lucide-react';
 import { api } from '../services/api';
+import { detectClothingColors } from '../services/colorDetector';
 
 // Helper pour compresser les photos volumineuses (ex: photos smartphone 10Mo -> ~150Ko instantanément)
 const compressImage = (file, maxWidth = 1280, maxHeight = 1280, quality = 0.82) => {
@@ -55,9 +56,10 @@ const compressImage = (file, maxWidth = 1280, maxHeight = 1280, quality = 0.82) 
   });
 };
 
-export default function CameraCapture({ imageUrls = [], onImagesChanged }) {
+export default function CameraCapture({ imageUrls = [], onImagesChanged, onColorsDetected }) {
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [detectedSwatches, setDetectedSwatches] = useState([]);
 
   const cameraInputRef = useRef(null);
   const galleryInputRef = useRef(null);
@@ -73,6 +75,20 @@ export default function CameraCapture({ imageUrls = [], onImagesChanged }) {
     const files = Array.from(fileList);
     setLoading(true);
     setUploadProgress({ current: 0, total: files.length });
+
+    // Agent Détection Automatique des Couleurs sur la première photo
+    try {
+      detectClothingColors(files[0]).then((res) => {
+        if (res && res.colorsString) {
+          setDetectedSwatches(res.detectedColors || []);
+          if (onColorsDetected) {
+            onColorsDetected(res.colorsString, res.detectedColors);
+          }
+        }
+      });
+    } catch (e) {
+      console.warn('Erreur analyse de couleur:', e);
+    }
 
     const newUrls = [];
 
@@ -146,6 +162,60 @@ export default function CameraCapture({ imageUrls = [], onImagesChanged }) {
         onChange={(e) => handleFiles(e.target.files)}
         style={{ display: 'none' }}
       />
+
+      {/* BADGE AGENT DÉTECTION COULEURS */}
+      {detectedSwatches.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'linear-gradient(135deg, rgba(253, 242, 248, 0.95), rgba(255, 241, 242, 0.95))',
+            border: '1px solid var(--accent-rose-border)',
+            borderRadius: '12px',
+            padding: '8px 12px',
+            marginBottom: '10px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-rose-dark)' }}>
+            <Palette size={14} color="var(--accent-rose)" />
+            <span>Couleurs détectées :</span>
+          </div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {detectedSwatches.map((swatch, i) => (
+              <span
+                key={i}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#fff',
+                  border: '1px solid rgba(0,0,0,0.08)',
+                  borderRadius: '20px',
+                  padding: '2px 8px',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  color: '#1c1917',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                }}
+              >
+                <span
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    background: swatch.hex,
+                    display: 'inline-block',
+                    border: '1px solid rgba(0,0,0,0.15)',
+                  }}
+                />
+                {swatch.name}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* CHARGEMENT EN COURS */}
       {loading && (
